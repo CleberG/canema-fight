@@ -1,0 +1,160 @@
+:root {
+  --bg: #0b0b0f;
+  --panel: #15151c;
+  --panel-2: #1d1d27;
+  --line: #2a2a36;
+  --text: #f2f2f5;
+  --muted: #9a9aab;
+  --red: #e5262f;
+  --red-soft: rgba(229, 38, 47, 0.14);
+  --blue: #1f6fe5;
+  --blue-soft: rgba(31, 111, 229, 0.14);
+  --gold: #f2b632;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  line-height: 1.4;
+  min-height: 100vh;
+}
+
+a { color: inherit; }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+
+/* Cabeçalho */
+.hero {
+  text-align: center;
+  padding: 48px 16px 28px;
+  background:
+    linear-gradient(90deg, var(--red-soft), transparent 40%, transparent 60%, var(--blue-soft)),
+    var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.hero h1 {
+  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: clamp(44px, 9vw, 84px);
+  letter-spacing: 2px;
+  line-height: 0.95;
+  margin: 0;
+}
+.hero .logo {
+  display: block;
+  width: clamp(200px, 45vw, 300px);
+  height: auto;
+  margin: -16px auto -28px;
+  /* o fundo preto do logo some sobre o fundo escuro */
+  mix-blend-mode: lighten;
+}
+.hero h1 .r { color: var(--red); }
+.hero h1 .b { color: var(--blue); }
+.hero p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 13px;
+}
+
+.corners {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 2px;
+  font-size: 18px;
+  margin: 28px 0 12px;
+}
+.corners .r { color: var(--red); }
+.corners .b { color: var(--blue); }
+
+/* Card de luta */
+.lutas { display: grid; gap: 14px; padding-bottom: 48px; }
+
+.luta {
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.lado { padding: 16px 18px; min-width: 0; }
+.lado.vermelho {
+  border-left: 5px solid var(--red);
+  background: linear-gradient(90deg, var(--red-soft), transparent);
+}
+.lado.azul {
+  border-right: 5px solid var(--blue);
+  background: linear-gradient(270deg, var(--blue-soft), transparent);
+  text-align: right;
+}
+.nome {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(22px, 4.2vw, 32px);
+  letter-spacing: 1px;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+.vermelho .nome { color: #ff5a61; }
+.azul .nome { color: #5c9bff; }
+.equipe {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  overflow-wrap: anywhere;
+}
+
+.meio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--panel-2);
+  min-width: 120px;
+  text-align: center;
+}
+.num { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+.vs { font-family: 'Bebas Neue', sans-serif; font-size: 26px; line-height: 1; }
+.peso { font-weight: 700; font-size: 14px; }
+.mod {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold);
+}
+
+.vencedor .nome::after {
+  content: ' 🏆';
+  font-size: 0.7em;
+}
+.perdedor { opacity: 0.45; }
+.tag-empate { font-size: 11px; color: var(--gold); text-transform: uppercase; }
+
+@media (max-width: 600px) {
+  .luta { grid-template-columns: 1fr 1fr; }
+  .meio {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .vs { font-size: 18px; }
+  .lado { padding: 12px 14px; }
+}
