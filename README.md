@@ -40,3 +40,16 @@ npx serve .
 3. Em ~1 minuto o site fica em `https://<seu-usuario>.github.io/<repositorio>/`.
 
 O arquivo `.nojekyll` faz o GitHub servir os arquivos como estão, sem processar com Jekyll.
+
+## Protótipo de gestão (`gestao/`)
+
+Protótipo navegável em React + Tailwind do sistema de gestão do evento (dados fictícios):
+login, dashboard, colar ficha do WhatsApp, atletas, matches, montagem do card,
+pagamentos Pix, página pública com venda de ingressos e portaria com leitor de QR.
+
+```bash
+cd gestao
+npm install
+npm run dev     # abre em http://localhost:5173
+npm test        # testes do parser de ficha e das regras de match
+```
