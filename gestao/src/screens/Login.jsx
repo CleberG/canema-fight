@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { Button, Icon, inputCls } from '../components/ui.jsx';
 
-export default function Login({ onEntrar }) {
-  const [email, setEmail] = useState('organizacao@canemafight.com.br');
-  const [senha, setSenha] = useState('demo1234');
+export default function Login({ onEntrar, demo }) {
+  const [email, setEmail] = useState(demo ? 'organizacao@canemafight.com.br' : '');
+  const [senha, setSenha] = useState(demo ? 'demo1234' : '');
   const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState(null);
 
-  const entrar = (e) => {
+  const entrar = async (e) => {
     e.preventDefault();
     setCarregando(true);
-    setTimeout(onEntrar, 500);
+    setErro(null);
+    try {
+      await onEntrar(email, senha);
+    } catch (err) {
+      setErro(/invalid login/i.test(err.message) ? 'E-mail ou senha incorretos.' : err.message);
+      setCarregando(false);
+    }
   };
 
   return (
@@ -35,14 +42,17 @@ export default function Login({ onEntrar }) {
           </label>
           <div className="flex items-center justify-between text-xs">
             <label className="flex items-center gap-2 text-muted"><input type="checkbox" defaultChecked className="accent-fight" /> Lembrar de mim</label>
-            <a href="#/login" className="text-gold hover:underline">Esqueci a senha</a>
+            {demo && <a href="#/login" className="text-gold hover:underline">Esqueci a senha</a>}
           </div>
+          {erro && <p className="rounded-lg bg-fight/15 px-3 py-2 text-sm text-red-300">{erro}</p>}
           <Button type="submit" className="w-full py-3" disabled={carregando}>
             {carregando ? 'Entrando…' : <>Entrar <Icon name="arrowLeft" className="size-4 rotate-180" /></>}
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-zinc-500">Protótipo · dados fictícios · qualquer senha entra</p>
+        <p className="mt-6 text-center text-xs text-zinc-500">
+          {demo ? 'Modo demonstração · dados fictícios · qualquer senha entra' : 'Acesso restrito aos organizadores do evento'}
+        </p>
         <div className="mt-3 flex justify-center gap-4 text-xs">
           <a href="#/publico" className="text-zinc-400 hover:text-white">Ver página pública</a>
           <a href="#/portaria" className="text-zinc-400 hover:text-white">Abrir portaria</a>

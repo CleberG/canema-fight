@@ -53,3 +53,20 @@ npm install
 npm run dev     # abre em http://localhost:5173
 npm test        # testes do parser de ficha e das regras de match
 ```
+
+### Banco de dados (Supabase)
+
+Sem configuração, o protótipo roda em **modo demonstração** (dados fictícios em memória).
+Para gravar no Supabase:
+
+1. No **SQL Editor** do projeto, rode `gestao/supabase/migrations/20261103120000_schema_inicial.sql`
+   (tabelas, permissões e RLS) e depois `gestao/supabase/seed.sql` (dados fictícios de teste).
+2. Em **Authentication › Users › Add user**, crie o organizador (e-mail e senha, marque *Auto Confirm*).
+   Em **Authentication › Sign In / Providers**, desligue *Allow new users to sign up*.
+3. Ligue o organizador ao evento rodando o último trecho do `seed.sql` com o e-mail dele.
+4. Copie `gestao/.env.example` para `gestao/.env.local` e preencha a *Project URL* e a chave
+   **publishable** (Project Settings › API Keys). Nunca use a chave secret no front-end.
+5. Na Vercel, cadastre as mesmas variáveis em **Settings › Environment Variables** e faça um novo deploy.
+
+Organizadores leem e alteram só o próprio evento. Visitantes só veem evento, card publicado,
+ingressos e lotes, e compram pela função `comprar_ingressos` (o Pix ainda é simulado).

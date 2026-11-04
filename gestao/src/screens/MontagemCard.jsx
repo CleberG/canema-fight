@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Avatar, Button, Card, Icon, PageTitle, nomeExibido } from '../components/ui.jsx';
+import { Avatar, Button, Card, Icon, PageTitle, montarCardPublico, nomeExibido } from '../components/ui.jsx';
 
 // Arrastar e soltar com Pointer Events: funciona com mouse e com toque.
 // Arraste pela alça (⋮⋮) entre "Lutas aprovadas" e "Card do evento".
@@ -11,7 +11,6 @@ export default function MontagemCard({ store }) {
 
   const [drag, setDrag] = useState(null); // { id, x, y, w, offX, offY }
   const [alvo, setAlvo] = useState(null); // { lista: 'card'|'pool', antesDe: id|null }
-  const [publicado, setPublicado] = useState(false);
   const alvoRef = useRef(null);
 
   const iniciar = (e, id) => {
@@ -50,7 +49,6 @@ export default function MontagemCard({ store }) {
         const i = a.antesDe ? sem.indexOf(a.antesDe) : -1;
         return i < 0 ? [...sem, drag.id] : [...sem.slice(0, i), drag.id, ...sem.slice(i)];
       });
-      setPublicado(false);
     }
     setDrag(null); setAlvo(null); alvoRef.current = null;
   };
@@ -131,10 +129,19 @@ export default function MontagemCard({ store }) {
 
   const fantasma = drag && lutaPorId[drag.id];
 
+  // Publicado = o que a página pública mostra é igual ao card atual
+  const cardPublico = montarCardPublico(card, lutas, atletas);
+  const publicado = card.length > 0 && JSON.stringify(cardPublico) === JSON.stringify(store.cardPublicado);
+  const publicar = () => {
+    const anterior = store.cardPublicado;
+    store.setCardPublicado(cardPublico);
+    store.remoto(() => store.db.publicarCard(store.eventoId, cardPublico)).catch(() => store.setCardPublicado(anterior));
+  };
+
   return (
     <>
       <PageTitle kicker={evento.nome} title="Montagem do card">
-        <Button variant={publicado ? 'success' : 'gold'} onClick={() => setPublicado(true)} disabled={card.length === 0}>
+        <Button variant={publicado ? 'success' : 'gold'} onClick={publicar} disabled={card.length === 0 || publicado}>
           <Icon name={publicado ? 'check' : 'trophy'} className="size-4" /> {publicado ? 'Card publicado' : 'Publicar card'}
         </Button>
       </PageTitle>

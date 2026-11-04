@@ -94,17 +94,22 @@ export default function Matches({ store }) {
   const [aviso, setAviso] = useState(null);
   const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
 
+  const { remoto, db, eventoId } = store;
   const aprovar = (s) => {
+    remoto(() => db.decidirLuta(eventoId, s, 'aprovada')).catch(() => setLutas((l) => l.filter((x) => x.id !== s.id)));
     setLutas((l) => [...l, s]);
     setAviso({ tipo: 'ok', texto: `Luta aprovada: ${nomeExibido(porId[s.a])} × ${nomeExibido(porId[s.b])}. Já está disponível na montagem do card.` });
   };
   const recusar = (s) => {
+    remoto(() => db.decidirLuta(eventoId, s, 'recusada')).catch(() => setRecusados((r) => r.filter((x) => x !== s.id)));
     setRecusados((r) => [...r, s.id]);
     setAviso({ tipo: 'x', texto: 'Match recusado. Os atletas continuam disponíveis para outras sugestões.' });
   };
   const desfazer = (id) => {
+    const luta = lutas.find((x) => x.id === id);
+    remoto(() => db.desfazerLuta(eventoId, luta)).catch(() => {});
     setLutas((l) => l.filter((x) => x.id !== id));
-    setCard((c) => c.filter((x) => x !== id));
+    if (store.card.includes(id)) setCard((c) => c.filter((x) => x !== id));
   };
 
   return (

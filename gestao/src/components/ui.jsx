@@ -102,7 +102,18 @@ export const ehMenor = (a) => a.idade < 18;
 export const nomeExibido = (a) => (ehMenor(a) ? a.nome.split(' ')[0] : a.nome);
 export const instagramExibido = (a) => (ehMenor(a) ? null : a.instagram);
 
-export const iniciais = (nome) => nome.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+// Card como aparece na página pública: luta principal primeiro, só nome público e academia.
+export function montarCardPublico(card, lutas, atletas) {
+  const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
+  const lutaPorId = Object.fromEntries(lutas.map((l) => [l.id, l]));
+  const canto = (a) => ({ nome: nomeExibido(a), academia: a.academia });
+  return [...card].reverse().filter((id) => lutaPorId[id]).map((id) => {
+    const { a, b } = lutaPorId[id];
+    return { id, vermelho: canto(porId[a]), azul: canto(porId[b]), peso: Math.round(Math.max(porId[a].peso, porId[b].peso)) };
+  });
+}
+
+export const iniciais =(nome) => nome.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
 export function Avatar({ atleta, corner = 'red', size = 'size-11' }) {
   const ring = corner === 'red' ? 'from-fight to-fight-dark' : corner === 'blue' ? 'from-corner-blue to-blue-800' : 'from-gold to-amber-700';

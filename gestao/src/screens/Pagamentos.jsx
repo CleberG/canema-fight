@@ -19,6 +19,8 @@ export default function Pagamentos({ store }) {
   const arrecadado = conta('pago') * evento.inscricao;
 
   const marcarPago = (id) => {
+    store.remoto(() => store.db.marcarPago(id))
+      .catch(() => setAtletas((l) => l.map((a) => (a.id === id ? { ...a, pagamento: 'pendente' } : a))));
     setAtletas((l) => l.map((a) => (a.id === id ? { ...a, pagamento: 'pago' } : a)));
     setCobranca(null);
   };

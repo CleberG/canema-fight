@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { indiceLoteAtual, loteAtual, novoCodigo, venderNoLote } from '../lib/data.js';
-import { Avatar, Button, FakeQR, Icon, brl, inputCls, nomeExibido } from '../components/ui.jsx';
+import { Avatar, Button, FakeQR, Icon, brl, inputCls, montarCardPublico } from '../components/ui.jsx';
 
 const MAX_POR_TIPO = 10;
 
@@ -8,7 +8,7 @@ const MAX_POR_TIPO = 10;
 const nomeOk = (n) => n.trim().split(/\s+/).filter((p) => p.length > 1).length >= 2;
 const idadeOk = (v) => /^\d{1,3}$/.test(String(v).trim()) && Number(v) <= 120;
 
-export default function PaginaPublica({ store }) {
+export default function PaginaPublica({ store, carga }) {
   const { evento, ingressos, setIngressos, card, lutas, atletas, bilhetes, setBilhetes } = store;
   const [qtd, setQtd] = useState({});
   const [etapa, setEtapa] = useState(null); // null | 'dados' | 'pix' | 'ok'
@@ -16,8 +16,10 @@ export default function PaginaPublica({ store }) {
   const [email, setEmail] = useState('');
   const [tentou, setTentou] = useState(false);
   const [emitidos, setEmitidos] = useState([]);
-  const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
-  const lutaPorId = Object.fromEntries(lutas.map((l) => [l.id, l]));
+  const [comprando, setComprando] = useState(false);
+  const [erroCompra, setErroCompra] = useState(null);
+  // Demonstração mostra o card ao vivo; com Supabase, só o que o organizador publicou.
+  const cardLista = store.demo ? montarCardPublico(card, lutas, atletas) : store.cardPublicado;
 
   const itens = ingressos.filter((i) => qtd[i.id] > 0).map((i) => ({ ...i, lote: loteAtual(i), n: qtd[i.id] }));
   const total = itens.reduce((s, i) => s + i.lote.preco * i.n, 0);
@@ -42,7 +44,22 @@ export default function PaginaPublica({ store }) {
     if (dadosValidos) setEtapa('pix');
   };
 
-  const concluir = () => {
+  const concluir = async () => {
+    if (!store.demo) {
+      setComprando(true);
+      setErroCompra(null);
+      try {
+        const novos = await store.db.comprarIngressos(store.eventoId, pessoas, email);
+        setEmitidos(novos);
+        setEtapa('ok');
+        store.db.carregarPublico(store.eventoId).then((d) => setIngressos(d.ingressos)).catch(() => {});
+      } catch (e) {
+        setErroCompra(e.message);
+      } finally {
+        setComprando(false);
+      }
+      return;
+    }
     const usados = bilhetes.map((b) => b.codigo);
     const novos = pessoas.map((p) => {
       const codigo = novoCodigo(usados);
@@ -59,6 +76,14 @@ export default function PaginaPublica({ store }) {
     if (etapa === 'ok') { setQtd({}); setEmail(''); }
     setEtapa(null);
   };
+
+  if (!store.demo && !['ok', 'publico'].includes(carga?.estado)) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-ink p-6 text-center text-sm text-zinc-300">
+        {carga?.estado === 'erro' ? `Não foi possível carregar o evento: ${carga.erro}` : 'Carregando evento…'}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-ink pb-28">
@@ -85,24 +110,23 @@ export default function PaginaPublica({ store }) {
         <section>
           <h2 className="mb-3 font-display text-3xl tracking-wide">Card de lutas</h2>
           <div className="space-y-2">
-            {[...card].reverse().map((id, i) => {
-              const l = lutaPorId[id];
-              const A = porId[l.a];
-              const B = porId[l.b];
+            {cardLista.map((l, i) => {
+              const A = l.vermelho;
+              const B = l.azul;
               const principal = i === 0;
               return (
-                <div key={id} className={`grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border p-3 ${principal ? 'border-gold/60 bg-gold/5' : 'border-line bg-panel'}`}>
-                  <div className="flex min-w-0 items-center gap-2"><Avatar atleta={A} corner="red" size="size-10" /><div className="min-w-0"><p className="truncate text-sm font-semibold">{nomeExibido(A)}</p><p className="truncate text-xs text-muted">{A.academia}</p></div></div>
+                <div key={l.id} className={`grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border p-3 ${principal ? 'border-gold/60 bg-gold/5' : 'border-line bg-panel'}`}>
+                  <div className="flex min-w-0 items-center gap-2"><Avatar atleta={A} corner="red" size="size-10" /><div className="min-w-0"><p className="truncate text-sm font-semibold">{A.nome}</p><p className="truncate text-xs text-muted">{A.academia}</p></div></div>
                   <div className="text-center">
                     {principal && <p className="text-[9px] font-bold uppercase tracking-wider text-gold">Principal</p>}
                     <p className="font-display text-2xl text-fight">VS</p>
-                    <p className="text-[10px] text-zinc-500">{Math.round(Math.max(A.peso, B.peso))} kg</p>
+                    <p className="text-[10px] text-zinc-500">{l.peso} kg</p>
                   </div>
-                  <div className="flex min-w-0 flex-row-reverse items-center gap-2 text-right"><Avatar atleta={B} corner="blue" size="size-10" /><div className="min-w-0"><p className="truncate text-sm font-semibold">{nomeExibido(B)}</p><p className="truncate text-xs text-muted">{B.academia}</p></div></div>
+                  <div className="flex min-w-0 flex-row-reverse items-center gap-2 text-right"><Avatar atleta={B} corner="blue" size="size-10" /><div className="min-w-0"><p className="truncate text-sm font-semibold">{B.nome}</p><p className="truncate text-xs text-muted">{B.academia}</p></div></div>
                 </div>
               );
             })}
-            {card.length === 0 && <p className="text-sm text-muted">Card em breve.</p>}
+            {cardLista.length === 0 && <p className="text-sm text-muted">Card em breve.</p>}
           </div>
         </section>
 
@@ -224,7 +248,8 @@ export default function PaginaPublica({ store }) {
                 <p className="mt-3 font-display text-3xl text-gold">{brl(total)}</p>
                 <p className="text-xs text-muted">Pagar para {evento.recebedor} · expira em 15 min</p>
                 <div className="mt-3 flex items-center gap-2 text-xs text-amber-300"><span className="size-2 animate-pulse rounded-full bg-amber-300" /> Aguardando pagamento…</div>
-                <Button variant="success" className="mt-4 w-full py-3" onClick={concluir}>Simular pagamento aprovado</Button>
+                {erroCompra && <p className="mt-3 w-full rounded-lg bg-fight/15 px-3 py-2 text-sm text-red-300">{erroCompra}</p>}
+                <Button variant="success" className="mt-4 w-full py-3" onClick={concluir} disabled={comprando}>{comprando ? 'Emitindo ingressos…' : 'Simular pagamento aprovado'}</Button>
                 <button onClick={() => setEtapa('dados')} className="mt-2 text-xs text-zinc-400 hover:text-white">Voltar e corrigir dados</button>
               </div>
             )}

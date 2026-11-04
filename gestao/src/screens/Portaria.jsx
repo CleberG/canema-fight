@@ -22,16 +22,42 @@ export default function Portaria({ store }) {
   const streamRef = useRef(null);
   const ultimoRef = useRef('');
 
-  const registrar = (codigo) => {
-    const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const { demo, db } = store;
+  const [online, setOnline] = useState([]); // resultados da busca no Supabase
+
+  // Marca o check-in. Retorna false se outro aparelho já registrou a entrada.
+  const registrar = async (codigo) => {
+    let hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (!demo) {
+      try {
+        hora = await db.checkin(codigo);
+      } catch (e) {
+        store.setAviso(`Check-in não registrado: ${e.message}`);
+        return false;
+      }
+      if (!hora) return false;
+    }
     setBilhetes((l) => l.map((b) => (b.codigo === codigo ? { ...b, status: 'usado', horario: hora } : b)));
     setCheckins((c) => c + 1);
+    return true;
   };
 
-  const validar = (codigo) => {
+  const validar = async (codigo) => {
     const c = codigo.trim().toUpperCase();
-    const r = avaliar(bilhetes.find((b) => b.codigo === c), c);
-    if (r.auto) registrar(c);
+    let bilhete = bilhetes.find((b) => b.codigo === c);
+    if (!demo) {
+      try {
+        bilhete = await db.buscarBilhete(c); // sempre o estado atual do banco
+      } catch (e) {
+        store.setAviso(`Falha ao consultar ingresso: ${e.message}`);
+        return;
+      }
+    }
+    let r = avaliar(bilhete, c);
+    if (r.auto && !(await registrar(c))) {
+      // outro aparelho registrou a entrada nesse meio-tempo
+      r = demo ? r : avaliar(await db.buscarBilhete(c).catch(() => bilhete), c);
+    }
     setResultado(r);
     if (navigator.vibrate) navigator.vibrate(r.cor === 'green' ? 80 : [80, 60, 80]);
   };
@@ -74,7 +100,17 @@ export default function Portaria({ store }) {
   const fechar = () => { setResultado(null); ultimoRef.current = ''; };
 
   const termo = busca.trim().toLowerCase();
-  const encontrados = termo.length >= 2 ? bilhetes.filter((b) => `${b.nome} ${b.codigo}`.toLowerCase().includes(termo)) : [];
+  useEffect(() => {
+    if (demo || termo.length < 2) { setOnline([]); return undefined; }
+    const t = setTimeout(() => {
+      db.buscarBilhetes(store.eventoId, termo).then(setOnline).catch((e) => store.setAviso(`Falha na busca: ${e.message}`));
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demo, termo]);
+  const encontrados = termo.length < 2 ? [] : demo
+    ? bilhetes.filter((b) => `${b.nome} ${b.codigo}`.toLowerCase().includes(termo))
+    : online;
 
   return (
     <div className="min-h-screen bg-ink">
@@ -153,7 +189,7 @@ export default function Portaria({ store }) {
           {resultado.bilhete && <p className="mt-2 font-mono opacity-75">{resultado.bilhete.codigo}</p>}
           <div className="mt-10 flex w-full max-w-xs flex-col gap-3" onClick={(e) => e.stopPropagation()}>
             {resultado.liberar && !resultado.auto && (
-              <button onClick={() => { registrar(resultado.bilhete.codigo); fechar(); }} className="rounded-2xl bg-black/80 py-4 text-lg font-bold text-white">Documento ok · liberar</button>
+              <button onClick={async () => { const c = resultado.bilhete.codigo; if (await registrar(c)) fechar(); else validar(c); }} className="rounded-2xl bg-black/80 py-4 text-lg font-bold text-white">Documento ok · liberar</button>
             )}
             <button onClick={fechar} className="rounded-2xl bg-black/25 py-4 text-lg font-bold">Próximo</button>
           </div>

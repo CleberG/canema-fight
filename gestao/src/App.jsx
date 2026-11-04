@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ATLETAS, BILHETES, CHECKINS_INICIAIS, EVENTO, INGRESSOS } from './lib/data.js';
 import { sugerirMatches } from './lib/matching.js';
-import { Icon } from './components/ui.jsx';
+import { Icon, montarCardPublico } from './components/ui.jsx';
+import * as db from './lib/db.js';
 import Login from './screens/Login.jsx';
 import Dashboard from './screens/Dashboard.jsx';
 import ColarFicha from './screens/ColarFicha.jsx';
@@ -58,22 +59,38 @@ function estadoInicial() {
   return { lutas, card: lutas.map((l) => l.id) };
 }
 
+function Tela1({ texto, acao }) {
+  return (
+    <div className="stripe-bg grid min-h-screen place-items-center p-6 text-center">
+      <div className="max-w-sm">
+        <p className="text-sm text-zinc-300">{texto}</p>
+        {acao && <button onClick={acao} className="mt-4 rounded-xl bg-fight px-4 py-2 text-sm font-semibold text-white">Sair e entrar com outra conta</button>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [rota, setRota] = useState(rotaAtual);
   const [menuAberto, setMenuAberto] = useState(false);
-  const [evento, setEventoState] = useState(eventoSalvo);
-  const setEvento = (novo) => {
-    setEventoState(novo);
-    try { localStorage.setItem(CHAVE_EVENTO, JSON.stringify(novo)); } catch { /* sem armazenamento */ }
-  };
-  const [atletas, setAtletas] = useState(ATLETAS);
   const inicial = useMemo(estadoInicial, []);
-  const [lutas, setLutas] = useState(inicial.lutas); // matches aprovados
+  const demo = db.modoDemo;
+  const [evento, setEventoState] = useState(demo ? eventoSalvo : EVENTO);
+  const [eventoId, setEventoId] = useState(db.EVENTO_ID);
+  const [atletas, setAtletas] = useState(demo ? ATLETAS : []);
+  const [lutas, setLutas] = useState(demo ? inicial.lutas : []); // matches aprovados
   const [recusados, setRecusados] = useState([]);
-  const [card, setCard] = useState(inicial.card); // ids de lutas na ordem do card
-  const [bilhetes, setBilhetes] = useState(BILHETES);
-  const [checkins, setCheckins] = useState(CHECKINS_INICIAIS);
-  const [ingressos, setIngressos] = useState(INGRESSOS);
+  const [card, setCardState] = useState(demo ? inicial.card : []); // ids de lutas na ordem do card
+  const [cardPublicado, setCardPublicado] = useState(() => (demo ? montarCardPublico(inicial.card, inicial.lutas, ATLETAS) : []));
+  const [bilhetes, setBilhetes] = useState(demo ? BILHETES : []);
+  const [checkins, setCheckins] = useState(demo ? CHECKINS_INICIAIS : 0);
+  const [ingressos, setIngressos] = useState(demo ? INGRESSOS : []);
+
+  // Supabase: sessão do organizador e carga dos dados
+  const [sessao, setSessao] = useState(null);
+  const [authPronto, setAuthPronto] = useState(demo);
+  const [carga, setCarga] = useState({ estado: demo ? 'ok' : 'vazio', erro: null });
+  const [aviso, setAviso] = useState(null);
 
   useEffect(() => {
     const on = () => { setRota(rotaAtual()); setMenuAberto(false); window.scrollTo(0, 0); };
@@ -81,7 +98,53 @@ export default function App() {
     return () => window.removeEventListener('hashchange', on);
   }, []);
 
+  useEffect(() => {
+    if (demo) return undefined;
+    db.supabase.auth.getSession().then(({ data }) => { setSessao(data.session); setAuthPronto(true); });
+    const { data } = db.supabase.auth.onAuthStateChange((_evento, s) => setSessao(s));
+    return () => data.subscription.unsubscribe();
+  }, [demo]);
+
+  const usuario = sessao?.user?.id;
+  useEffect(() => {
+    if (demo || !usuario) return;
+    setCarga({ estado: 'carregando', erro: null });
+    db.carregarOrganizador()
+      .then((d) => {
+        setEventoId(d.eventoId); setEventoState(d.evento); setAtletas(d.atletas); setLutas(d.lutas);
+        setRecusados(d.recusados); setCardState(d.card); setCardPublicado(d.cardPublico);
+        setBilhetes(d.bilhetes); setCheckins(d.checkins); setIngressos(d.ingressos);
+        setCarga({ estado: 'ok', erro: null });
+      })
+      .catch((e) => setCarga({ estado: 'erro', erro: e.message }));
+  }, [demo, usuario]);
+
+  // Visitante sem login: só os dados públicos do evento
+  useEffect(() => {
+    if (demo || !authPronto || usuario || rota !== 'publico') return;
+    db.carregarPublico()
+      .then((d) => { setEventoState(d.evento); setIngressos(d.ingressos); setCardPublicado(d.cardPublico); setCarga({ estado: 'publico', erro: null }); })
+      .catch((e) => setCarga({ estado: 'erro', erro: e.message }));
+  }, [demo, authPronto, usuario, rota]);
+
   const ir = (r) => { window.location.hash = `/${r}`; };
+
+  // Executa a gravação no Supabase (no modo demonstração não faz nada) e avisa se falhar.
+  const remoto = (fn) => (demo ? Promise.resolve(null) : fn().catch((e) => { setAviso(`Não foi possível salvar: ${e.message}`); throw e; }));
+
+  const setEvento = (novo) => {
+    setEventoState(novo);
+    if (demo) {
+      try { localStorage.setItem(CHAVE_EVENTO, JSON.stringify(novo)); } catch { /* sem armazenamento */ }
+    } else {
+      remoto(() => db.salvarEvento(eventoId, novo)).catch(() => {});
+    }
+  };
+  const setCard = (f) => {
+    const novo = typeof f === 'function' ? f(card) : f;
+    setCardState(novo);
+    remoto(() => db.salvarCard(eventoId, novo, lutas)).catch(() => {});
+  };
 
   const emLuta = useMemo(() => new Set(lutas.flatMap((l) => [l.a, l.b])), [lutas]);
   const sugestoes = useMemo(() => {
@@ -90,14 +153,36 @@ export default function App() {
   }, [atletas, emLuta, recusados]);
 
   const store = {
-    evento, setEvento, atletas, setAtletas, lutas, setLutas, recusados, setRecusados,
-    card, setCard, bilhetes, setBilhetes, checkins, setCheckins, ingressos, setIngressos,
-    emLuta, sugestoes, ir,
+    evento, setEvento, eventoId, atletas, setAtletas, lutas, setLutas, recusados, setRecusados,
+    card, setCard, cardPublicado, setCardPublicado, bilhetes, setBilhetes, checkins, setCheckins, ingressos, setIngressos,
+    emLuta, sugestoes, ir, demo, db, remoto, setAviso,
   };
 
-  if (rota === 'login') return <Login onEntrar={() => ir('dashboard')} />;
-  if (rota === 'publico') return <PaginaPublica store={store} />;
-  if (rota === 'portaria') return <Portaria store={store} />;
+  const toast = aviso && (
+    <div className="fixed inset-x-4 bottom-24 z-[60] mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-fight/50 bg-panel p-3 text-sm shadow-2xl lg:bottom-6">
+      <Icon name="alert" className="size-5 shrink-0 text-fight" />
+      <span className="flex-1">{aviso}</span>
+      <button onClick={() => setAviso(null)} aria-label="Fechar aviso"><Icon name="x" className="size-4" /></button>
+    </div>
+  );
+
+  const entrar = async (email, senha) => {
+    if (!demo) await db.entrar(email, senha);
+    ir('dashboard');
+  };
+
+  if (rota === 'login') return <Login onEntrar={entrar} demo={demo} />;
+  if (rota === 'publico') return <>{<PaginaPublica store={store} carga={carga} />}{toast}</>;
+
+  // Fora do modo demonstração, as telas do organizador exigem login.
+  if (!demo) {
+    if (!authPronto) return <Tela1 texto="Carregando…" />;
+    if (!sessao) return <Login onEntrar={entrar} demo={demo} />;
+    if (carga.estado === 'erro') return <Tela1 texto={carga.erro} acao={() => db.sair().then(() => ir('login'))} />;
+    if (carga.estado !== 'ok') return <Tela1 texto="Carregando dados do evento…" />;
+  }
+
+  if (rota === 'portaria') return <><Portaria store={store} />{toast}</>;
 
   const TELAS = { dashboard: Dashboard, ficha: ColarFicha, atletas: Atletas, matches: Matches, card: MontagemCard, pagamentos: Pagamentos, config: Configuracoes };
   const Tela = TELAS[rota] ?? Dashboard;
@@ -139,9 +224,9 @@ export default function App() {
       {/* Sidebar desktop */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-ink/60 p-4 backdrop-blur lg:flex">
         <Logo />
-        <p className="mt-1 mb-6 text-xs text-muted">{evento.nome} · {evento.dataTexto.split('·')[0]}</p>
+        <p className="mt-1 mb-6 text-xs text-muted">{evento.nome} · {evento.dataTexto.split('·')[0]}{demo && <span className="mt-1 block text-amber-300">Modo demonstração</span>}</p>
         <nav className="flex flex-col gap-1">{ROTAS.map((r) => <NavItem key={r.id} r={r} />)}</nav>
-        <a href="#/login" className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-500 hover:text-white">
+        <a href="#/login" onClick={() => { if (!demo) db.sair(); }} className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-500 hover:text-white">
           <Icon name="logout" /> Sair
         </a>
       </aside>
@@ -164,7 +249,7 @@ export default function App() {
               <button onClick={() => setMenuAberto(false)} className="rounded-lg p-2 hover:bg-panel-2" aria-label="Fechar menu"><Icon name="x" /></button>
             </div>
             {ROTAS.map((r) => <NavItem key={r.id} r={r} />)}
-            <a href="#/login" className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-500"><Icon name="logout" /> Sair</a>
+            <a href="#/login" onClick={() => { if (!demo) db.sair(); }} className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-500"><Icon name="logout" /> Sair</a>
           </nav>
         </div>
       )}
@@ -180,6 +265,7 @@ export default function App() {
           <Icon name="menu" /> Mais
         </button>
       </nav>
+      {toast}
     </div>
   );
 }

@@ -23,14 +23,24 @@ export default function ColarFicha({ store }) {
   const campos = CAMPOS.filter((c) => c.key !== 'responsavel' || menor);
   const faltando = form ? OBRIGATORIOS.filter((k) => form[k] === '' || form[k] == null) : [];
 
-  const salvar = () => {
-    const id = Math.max(...store.atletas.map((a) => a.id)) + 1;
+  const [salvando, setSalvando] = useState(false);
+  const salvar = async () => {
+    const id = Math.max(0, ...store.atletas.map((a) => a.id)) + 1;
     const num = (k) => Number(String(form[k]).replace(',', '.')) || 0;
-    const novo = {
+    let novo = {
       ...form, id, idade: num('idade'), peso: num('peso'), altura: num('altura'),
       lutas: num('lutas'), luvoes: num('luvoes'), tempoTreino: num('tempoTreino'),
       status: 'aguardando', pagamento: 'pendente',
     };
+    setSalvando(true);
+    try {
+      // No Supabase o id vem do banco
+      novo = (await store.remoto(() => store.db.inserirAtleta(store.eventoId, novo))) ?? novo;
+    } catch {
+      setSalvando(false);
+      return;
+    }
+    setSalvando(false);
     store.setAtletas((l) => [...l, novo]);
     setSalvo(novo.nome);
     setTexto(''); setForm(null);
@@ -124,7 +134,7 @@ export default function ColarFicha({ store }) {
               )}
               <div className="mt-4 flex gap-2">
                 <Button variant="ghost" onClick={() => setForm(null)}>Descartar</Button>
-                <Button variant="success" className="flex-1" onClick={salvar} disabled={faltando.length > 0}>
+                <Button variant="success" className="flex-1" onClick={salvar} disabled={faltando.length > 0 || salvando}>
                   <Icon name="check" className="size-4" /> Salvar atleta
                 </Button>
               </div>

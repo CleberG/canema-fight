@@ -123,10 +123,10 @@ export default function Configuracoes({ store }) {
           </Card>
           <Card className="flex gap-3 border-amber-400/30 bg-amber-400/5 p-4 text-xs text-amber-200">
             <Icon name="alert" className="size-4 shrink-0" />
-            <p>No protótipo a chave é só exibida e fica salva neste navegador. Na versão final, cobranças e baixas automáticas dependem de integrar um provedor de pagamento com esta chave.</p>
+            <p>{store.demo ? 'No modo demonstração a configuração fica salva só neste navegador.' : 'A configuração fica salva no banco de dados do evento.'} A chave é exibida nas cobranças; cobranças e baixas automáticas dependem de integrar um provedor de pagamento.</p>
           </Card>
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={restaurar}>Restaurar padrão</Button>
+            {store.demo && <Button type="button" variant="ghost" onClick={restaurar}>Restaurar padrão</Button>}
             <Button type="submit" variant="success" className="flex-1"><Icon name="check" className="size-4" /> Salvar</Button>
           </div>
         </div>
