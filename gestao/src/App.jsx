@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ATLETAS, BILHETES, CHECKINS_INICIAIS, EVENTO, INGRESSOS } from './lib/data.js';
+import { ATLETAS, BILHETES, CHECKINS_INICIAIS, EVENTO, INGRESSOS, PEDIDOS } from './lib/data.js';
 import { sugerirMatches } from './lib/matching.js';
 import { Icon, montarCardPublico } from './components/ui.jsx';
 import * as db from './lib/db.js';
@@ -83,6 +83,7 @@ export default function App() {
   const [card, setCardState] = useState(demo ? inicial.card : []); // ids de lutas na ordem do card
   const [cardPublicado, setCardPublicado] = useState(() => (demo ? montarCardPublico(inicial.card, inicial.lutas, ATLETAS) : []));
   const [bilhetes, setBilhetes] = useState(demo ? BILHETES : []);
+  const [pedidos, setPedidos] = useState(demo ? PEDIDOS : []);
   const [checkins, setCheckins] = useState(demo ? CHECKINS_INICIAIS : 0);
   const [ingressos, setIngressos] = useState(demo ? INGRESSOS : []);
 
@@ -113,7 +114,7 @@ export default function App() {
       .then((d) => {
         setEventoId(d.eventoId); setEventoState(d.evento); setAtletas(d.atletas); setLutas(d.lutas);
         setRecusados(d.recusados); setCardState(d.card); setCardPublicado(d.cardPublico);
-        setBilhetes(d.bilhetes); setCheckins(d.checkins); setIngressos(d.ingressos);
+        setBilhetes(d.bilhetes); setPedidos(d.pedidos); setCheckins(d.checkins); setIngressos(d.ingressos);
         setCarga({ estado: 'ok', erro: null });
       })
       .catch((e) => setCarga({ estado: 'erro', erro: e.message }));
@@ -154,7 +155,7 @@ export default function App() {
 
   const store = {
     evento, setEvento, eventoId, atletas, setAtletas, lutas, setLutas, recusados, setRecusados,
-    card, setCard, cardPublicado, setCardPublicado, bilhetes, setBilhetes, checkins, setCheckins, ingressos, setIngressos,
+    card, setCard, cardPublicado, setCardPublicado, bilhetes, setBilhetes, pedidos, setPedidos, checkins, setCheckins, ingressos, setIngressos,
     emLuta, sugestoes, ir, demo, db, remoto, setAviso,
   };
 

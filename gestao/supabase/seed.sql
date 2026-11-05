@@ -1,5 +1,5 @@
 -- Canema Fight · dados fictícios para teste
--- Rode no SQL Editor depois da migração. O id do evento é fixo para
+-- Rode no SQL Editor depois das migrações. O id do evento é fixo para
 -- combinar com VITE_EVENTO_ID do .env.example.
 
 insert into public.eventos (id, nome, subtitulo, data, local, cidade, inscricao, tipo_chave, chave_pix, recebedor)
@@ -51,20 +51,34 @@ join (values
   ('ringside', 'Lote único', 120, 60, 54, 1)
 ) as l(slug, nome, preco, qtd, vendidos, ordem) on l.slug = t.slug;
 
-insert into public.bilhetes (evento_id, codigo, nome, idade, tipo_id, lote_id, status, usado_em)
-select 'c3a1f000-0000-4000-8000-000000000001', b.codigo, b.nome, b.idade, t.id, l.id, b.status,
+-- Ingressos de exemplo, agrupados em pedidos (um Pix por pedido). O da família Moretti está aguardando confirmação.
+with b as (
+  select v.*, t.id as tipo_id, l.id as lote_id, l.preco
+  from (values
+    ('CF3-7K2Q9', 'Marina Souza Teles', 29, 'pista', '2º lote', 'valido', 'Marina Souza Teles', 'pago'),
+    ('CF3-3H8LM', 'Carlos Eduardo Ritter', 41, 'ringside', 'Lote único', 'valido', 'Carlos Eduardo Ritter', 'pago'),
+    ('CF3-9P4XA', 'Fernanda Klein', 19, 'meia', '1º lote', 'valido', 'Fernanda Klein', 'pago'),
+    ('CF3-1B6TR', 'Rodrigo Albuquerque', 35, 'pista', '1º lote', 'usado', 'Rodrigo Albuquerque', 'pago'),
+    ('CF3-5Z0NC', 'Patrícia Vogel', 52, 'pista', '2º lote', 'cancelado', 'Patrícia Vogel', 'cancelado'),
+    ('CF3-8W3DE', 'Henrique Batista', 33, 'ringside', 'Lote único', 'valido', 'Henrique Batista', 'pago'),
+    ('CF3-2M7GU', 'Aline Fritzen', 67, 'meia', '2º lote', 'usado', 'Aline Fritzen', 'pago'),
+    ('CF3-4R9JT', 'Bianca Moretti', 38, 'pista', '2º lote', 'valido', 'Bianca Moretti', 'pendente'),
+    ('CF3-6V2PA', 'Otávio Moretti', 12, 'meia', '2º lote', 'valido', 'Bianca Moretti', 'pendente')
+  ) as v(codigo, nome, idade, slug, lote, status, comprador, pagamento)
+  join public.tipos_ingresso t on t.evento_id = 'c3a1f000-0000-4000-8000-000000000001' and t.slug = v.slug
+  join public.lotes l on l.tipo_id = t.id and l.nome = v.lote
+),
+p as (
+  insert into public.pedidos (evento_id, comprador_nome, total, pagamento, pago_em)
+  select 'c3a1f000-0000-4000-8000-000000000001', comprador, sum(preco), min(pagamento),
+         case when min(pagamento) = 'pago' then now() - interval '2 days' end
+  from b group by comprador
+  returning id, comprador_nome
+)
+insert into public.bilhetes (evento_id, pedido_id, codigo, nome, idade, tipo_id, lote_id, status, usado_em)
+select 'c3a1f000-0000-4000-8000-000000000001', p.id, b.codigo, b.nome, b.idade, b.tipo_id, b.lote_id, b.status,
        case when b.status = 'usado' then now() - interval '30 minutes' end
-from (values
-  ('CF3-7K2Q9', 'Marina Souza Teles', 29, 'pista', '2º lote', 'valido'),
-  ('CF3-3H8LM', 'Carlos Eduardo Ritter', 41, 'ringside', 'Lote único', 'valido'),
-  ('CF3-9P4XA', 'Fernanda Klein', 19, 'meia', '1º lote', 'valido'),
-  ('CF3-1B6TR', 'Rodrigo Albuquerque', 35, 'pista', '1º lote', 'usado'),
-  ('CF3-5Z0NC', 'Patrícia Vogel', 52, 'pista', '2º lote', 'cancelado'),
-  ('CF3-8W3DE', 'Henrique Batista', 33, 'ringside', 'Lote único', 'valido'),
-  ('CF3-2M7GU', 'Aline Fritzen', 67, 'meia', '2º lote', 'usado')
-) as b(codigo, nome, idade, slug, lote, status)
-join public.tipos_ingresso t on t.evento_id = 'c3a1f000-0000-4000-8000-000000000001' and t.slug = b.slug
-join public.lotes l on l.tipo_id = t.id and l.nome = b.lote;
+from b join p on p.comprador_nome = b.comprador;
 
 -- Organizador: crie o usuário em Authentication › Users › Add user,
 -- troque o e-mail abaixo pelo dele e rode este trecho.

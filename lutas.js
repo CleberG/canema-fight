@@ -72,4 +72,35 @@ export const LUTAS = [
     vermelho: { nome: 'Daniela Ribeiro', equipe: 'Thai Gaspar (Gilmar)', foto: f('12', 'vermelho') },
     azul: { nome: 'Nathaly Kitabayashi', equipe: 'Canema Fight School', foto: f('12', 'azul') },
   },
+  // Confrontos anunciados no Instagram @canemafight (equipes ainda não divulgadas)
+  {
+    peso: 'Peso combinado', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Taíla', equipe: '', foto: f('13', 'vermelho') },
+    azul: { nome: 'Emanueli', equipe: '', foto: f('13', 'azul') },
+  },
+  {
+    peso: '66 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Felipe', equipe: '', foto: f('14', 'vermelho') },
+    azul: { nome: 'José', equipe: '', foto: f('14', 'azul') },
+  },
+  {
+    peso: '55 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Júnior', equipe: '', foto: f('15', 'vermelho') },
+    azul: { nome: 'Anthony', equipe: '', foto: f('15', 'azul') },
+  },
+  {
+    peso: '23 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Valentina', equipe: '', foto: f('16', 'vermelho') },
+    azul: { nome: 'Jordana', equipe: '', foto: f('16', 'azul') },
+  },
+  {
+    peso: '70 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Abner', equipe: '', foto: f('17', 'vermelho') },
+    azul: { nome: 'Arlan', equipe: '', foto: f('17', 'azul') },
+  },
+  {
+    peso: '64 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Amanda', equipe: '', foto: f('18', 'vermelho') },
+    azul: { nome: 'Geovana', equipe: '', foto: f('18', 'azul') },
+  },
 ];

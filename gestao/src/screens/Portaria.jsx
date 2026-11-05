@@ -1,197 +1,147 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge, Icon, inputCls } from '../components/ui.jsx';
 
-// verde: liberado · amarelo: atenção (meia-entrada ou já utilizado) · vermelho: barrado
-function avaliar(bilhete, codigo) {
-  if (!bilhete) return { cor: 'red', titulo: 'Ingresso inválido', texto: `Código ${codigo} não encontrado`, };
-  if (bilhete.status === 'cancelado') return { cor: 'red', titulo: 'Ingresso cancelado', texto: 'Compra estornada · não liberar', bilhete };
-  if (bilhete.status === 'usado') return { cor: 'yellow', titulo: 'Já utilizado', texto: `Check-in feito às ${bilhete.horario}. Confirme com o supervisor.`, bilhete };
-  if (bilhete.tipo.includes('Meia')) return { cor: 'yellow', titulo: 'Conferir documento', texto: 'Meia-entrada: peça documento de estudante, idoso ou PcD', bilhete, liberar: true };
-  return { cor: 'green', titulo: 'Entrada liberada', texto: [bilhete.tipo, bilhete.lote].filter(Boolean).join(' · '), bilhete, liberar: true, auto: true };
-}
+// Nesta versão não há leitura de QR: a portaria confere pelo nome na lista.
+const ABAS = [
+  { id: 'pagos', label: 'Pagos', icon: 'check' },
+  { id: 'pendentes', label: 'Não pagaram', icon: 'alert' },
+];
 
-const FUNDO = { green: 'bg-emerald-600', yellow: 'bg-amber-400 text-ink', red: 'bg-fight' };
-const ICONE = { green: 'check', yellow: 'alert', red: 'x' };
+const semAcento = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export default function Portaria({ store }) {
-  const { bilhetes, setBilhetes, checkins, setCheckins } = store;
-  const [resultado, setResultado] = useState(null);
+  const { bilhetes, setBilhetes, checkins, setCheckins, demo, db } = store;
+  const [aba, setAba] = useState('pagos');
   const [busca, setBusca] = useState('');
-  const [camera, setCamera] = useState('desligada'); // desligada | ligando | ligada | indisponivel
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const ultimoRef = useRef('');
+  const [atualizando, setAtualizando] = useState(false);
+  const [confirmar, setConfirmar] = useState(null); // bilhete pendente aguardando confirmação
 
-  const { demo, db } = store;
-  const [online, setOnline] = useState([]); // resultados da busca no Supabase
+  // Com Supabase, recarrega a lista (outros aparelhos podem ter registrado entradas ou pagamentos).
+  const atualizar = async () => {
+    if (demo) return;
+    setAtualizando(true);
+    try {
+      setBilhetes(await db.listarBilhetes(store.eventoId));
+    } catch (e) {
+      store.setAviso(`Falha ao atualizar a lista: ${e.message}`);
+    } finally {
+      setAtualizando(false);
+    }
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { atualizar(); }, []);
 
-  // Marca o check-in. Retorna false se outro aparelho já registrou a entrada.
-  const registrar = async (codigo) => {
+  const registrar = async (b) => {
     let hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     if (!demo) {
       try {
-        hora = await db.checkin(codigo);
+        hora = await db.checkin(b.codigo);
       } catch (e) {
-        store.setAviso(`Check-in não registrado: ${e.message}`);
-        return false;
+        store.setAviso(`Entrada não registrada: ${e.message}`);
+        return;
       }
-      if (!hora) return false;
-    }
-    setBilhetes((l) => l.map((b) => (b.codigo === codigo ? { ...b, status: 'usado', horario: hora } : b)));
-    setCheckins((c) => c + 1);
-    return true;
-  };
-
-  const validar = async (codigo) => {
-    const c = codigo.trim().toUpperCase();
-    let bilhete = bilhetes.find((b) => b.codigo === c);
-    if (!demo) {
-      try {
-        bilhete = await db.buscarBilhete(c); // sempre o estado atual do banco
-      } catch (e) {
-        store.setAviso(`Falha ao consultar ingresso: ${e.message}`);
+      if (!hora) {
+        store.setAviso(`${b.nome} já teve a entrada registrada em outro aparelho.`);
+        atualizar();
         return;
       }
     }
-    let r = avaliar(bilhete, c);
-    if (r.auto && !(await registrar(c))) {
-      // outro aparelho registrou a entrada nesse meio-tempo
-      r = demo ? r : avaliar(await db.buscarBilhete(c).catch(() => bilhete), c);
-    }
-    setResultado(r);
-    if (navigator.vibrate) navigator.vibrate(r.cor === 'green' ? 80 : [80, 60, 80]);
+    setBilhetes((l) => l.map((x) => (x.codigo === b.codigo ? { ...x, status: 'usado', horario: hora } : x)));
+    setCheckins((c) => c + 1);
+    if (navigator.vibrate) navigator.vibrate(60);
   };
 
-  // Câmera + BarcodeDetector (Chrome/Android). Sem suporte → botões de simulação.
-  const ligarCamera = async () => {
-    if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) { setCamera('indisponivel'); return; }
-    setCamera('ligando');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      streamRef.current = stream;
-      setCamera('ligada');
-    } catch {
-      setCamera('indisponivel');
-    }
-  };
-
-  useEffect(() => {
-    if (camera !== 'ligada' || !videoRef.current) return;
-    const video = videoRef.current;
-    video.srcObject = streamRef.current;
-    video.play();
-    const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-    let vivo = true;
-    const loop = async () => {
-      if (!vivo) return;
-      try {
-        const [qr] = await detector.detect(video);
-        if (qr && qr.rawValue !== ultimoRef.current) { ultimoRef.current = qr.rawValue; validar(qr.rawValue); }
-      } catch { /* quadro ainda não pronto */ }
-      setTimeout(loop, 300);
-    };
-    loop();
-    return () => { vivo = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera]);
-
-  useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
-
-  const fechar = () => { setResultado(null); ultimoRef.current = ''; };
-
-  const termo = busca.trim().toLowerCase();
-  useEffect(() => {
-    if (demo || termo.length < 2) { setOnline([]); return undefined; }
-    const t = setTimeout(() => {
-      db.buscarBilhetes(store.eventoId, termo).then(setOnline).catch((e) => store.setAviso(`Falha na busca: ${e.message}`));
-    }, 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demo, termo]);
-  const encontrados = termo.length < 2 ? [] : demo
-    ? bilhetes.filter((b) => `${b.nome} ${b.codigo}`.toLowerCase().includes(termo))
-    : online;
+  const ativos = bilhetes.filter((b) => b.status !== 'cancelado' && b.pagamento !== 'cancelado');
+  const pagos = ativos.filter((b) => b.pagamento === 'pago');
+  const pendentes = ativos.filter((b) => b.pagamento === 'pendente');
+  const base = aba === 'pagos' ? pagos : pendentes;
+  const termo = semAcento(busca.trim());
+  const lista = base
+    .filter((b) => !termo || semAcento(`${b.nome} ${b.codigo}`).includes(termo))
+    .sort((x, y) => (x.status === 'usado') - (y.status === 'usado') || x.nome.localeCompare(y.nome, 'pt-BR'));
+  const entraram = pagos.filter((b) => b.status === 'usado').length;
 
   return (
     <div className="min-h-screen bg-ink">
-      <header className="flex items-center justify-between border-b border-line px-4 py-3">
-        <a href="#/dashboard" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white"><Icon name="arrowLeft" className="size-4" /> Painel</a>
-        <span className="font-display text-2xl tracking-wide">Portaria</span>
-        <Badge color="green">{checkins} check-ins</Badge>
+      <header className="sticky top-0 z-20 border-b border-line bg-ink/95 backdrop-blur">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+          <a href="#/dashboard" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white"><Icon name="arrowLeft" className="size-4" /> Painel</a>
+          <span className="font-display text-2xl tracking-wide">Portaria</span>
+          <Badge color="green">{checkins} entradas</Badge>
+        </div>
+        <div className="mx-auto max-w-2xl space-y-3 px-4 pb-3">
+          <div className="grid grid-cols-2 gap-2">
+            {ABAS.map((a) => {
+              const total = a.id === 'pagos' ? pagos.length : pendentes.length;
+              const ativo = aba === a.id;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setAba(a.id)}
+                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold ring-1 transition ${ativo
+                    ? (a.id === 'pagos' ? 'bg-emerald-600/20 text-emerald-300 ring-emerald-500/50' : 'bg-amber-400/15 text-amber-300 ring-amber-400/50')
+                    : 'bg-panel text-zinc-400 ring-line hover:text-white'}`}
+                >
+                  <Icon name={a.icon} className="size-4" /> {a.label} <span className="rounded-full bg-black/30 px-2 text-xs">{total}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome" className={`${inputCls} py-3 pl-9`} />
+            </div>
+            {!demo && (
+              <button onClick={atualizar} disabled={atualizando} className="rounded-xl border border-line px-3 text-sm text-zinc-300 hover:bg-panel-2 disabled:opacity-50">
+                {atualizando ? '…' : 'Atualizar'}
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-muted">
+            {aba === 'pagos'
+              ? `${entraram} de ${pagos.length} já entraram`
+              : 'Pediram ingresso e o Pix ainda não foi confirmado. Confira o comprovante antes de liberar.'}
+          </p>
+        </div>
       </header>
 
-      <main className="mx-auto max-w-md space-y-5 p-4">
-        <div className="relative aspect-square overflow-hidden rounded-3xl border border-line bg-black">
-          {camera === 'ligada' ? (
-            <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
-          ) : (
-            <div className="grid h-full place-items-center p-6 text-center">
-              <div>
-                <Icon name="camera" className="mx-auto mb-3 size-12 text-zinc-600" />
-                {camera === 'indisponivel' ? (
-                  <p className="text-sm text-muted">Leitor de QR indisponível neste navegador. Use a simulação ou a busca manual abaixo.</p>
-                ) : (
-                  <button onClick={ligarCamera} className="rounded-xl bg-fight px-5 py-3 font-semibold text-white hover:bg-fight-dark">
-                    {camera === 'ligando' ? 'Abrindo câmera…' : 'Ligar câmera'}
-                  </button>
-                )}
+      <main className="mx-auto max-w-2xl space-y-2 p-4">
+        {lista.map((b) => {
+          const usado = b.status === 'usado';
+          return (
+            <div key={b.codigo} className={`flex items-center gap-3 rounded-xl border p-3 ${usado ? 'border-line bg-panel/50' : 'border-line bg-panel'}`}>
+              <div className="min-w-0 flex-1">
+                <p className={`truncate font-semibold ${usado ? 'text-zinc-500' : ''}`}>{b.nome}</p>
+                <p className="text-xs text-muted">{b.idade != null ? `${b.idade} anos · ` : ''}{b.tipo}</p>
               </div>
+              {usado ? (
+                <Badge color="gray">Entrou {b.horario}</Badge>
+              ) : aba === 'pagos' ? (
+                <button onClick={() => registrar(b)} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-500">Liberar entrada</button>
+              ) : (
+                <button onClick={() => setConfirmar(b)} className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-ink hover:bg-amber-300">Liberar</button>
+              )}
             </div>
-          )}
-          {/* mira */}
-          <div className="pointer-events-none absolute inset-[18%]">
-            {['left-0 top-0 border-l-4 border-t-4', 'right-0 top-0 border-r-4 border-t-4', 'bottom-0 left-0 border-b-4 border-l-4', 'bottom-0 right-0 border-b-4 border-r-4'].map((c) => (
-              <span key={c} className={`absolute size-10 rounded-sm border-gold ${c}`} />
-            ))}
-            {camera === 'ligada' && <span className="absolute inset-x-0 top-1/2 h-0.5 animate-pulse bg-fight shadow-[0_0_12px] shadow-fight" />}
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted">Simular leitura</p>
-          <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => validar(bilhetes.find((b) => b.status === 'valido' && !b.tipo.includes('Meia'))?.codigo ?? 'CF3-XXXXX')} className="rounded-xl bg-emerald-600/20 py-2.5 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-500/40">Válido</button>
-            <button onClick={() => validar(bilhetes.find((b) => b.status === 'usado')?.codigo ?? 'CF3-1B6TR')} className="rounded-xl bg-amber-400/15 py-2.5 text-sm font-semibold text-amber-300 ring-1 ring-amber-400/40">Já usado</button>
-            <button onClick={() => validar('CF3-ZZZZZ')} className="rounded-xl bg-fight/15 py-2.5 text-sm font-semibold text-red-300 ring-1 ring-fight/40">Inválido</button>
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted">Busca manual</p>
-          <div className="relative">
-            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
-            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome ou código (ex.: CF3-7K2Q9)" className={`${inputCls} py-3 pl-9`} />
-          </div>
-          <div className="mt-2 space-y-2">
-            {encontrados.map((b) => (
-              <button key={b.codigo} onClick={() => validar(b.codigo)} className="flex w-full items-center gap-3 rounded-xl border border-line bg-panel p-3 text-left hover:bg-panel-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{b.nome}</span>
-                  <span className="block font-mono text-xs text-muted">{b.codigo} · {b.tipo}{b.idade != null ? ` · ${b.idade} anos` : ''}</span>
-                </span>
-                <Badge color={b.status === 'valido' ? 'green' : b.status === 'usado' ? 'yellow' : 'red'}>{b.status === 'valido' ? 'Válido' : b.status === 'usado' ? `Usado ${b.horario}` : 'Cancelado'}</Badge>
-              </button>
-            ))}
-            {termo.length >= 2 && encontrados.length === 0 && <p className="text-sm text-muted">Nenhum ingresso encontrado.</p>}
-          </div>
-        </div>
+          );
+        })}
+        {lista.length === 0 && (
+          <p className="py-10 text-center text-sm text-muted">
+            {termo ? 'Ninguém encontrado com esse nome.' : aba === 'pagos' ? 'Nenhum ingresso pago ainda.' : 'Nenhum pedido aguardando pagamento.'}
+          </p>
+        )}
       </main>
 
-      {resultado && (
-        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center ${FUNDO[resultado.cor]}`} onClick={fechar}>
-          <div className="grid size-32 place-items-center rounded-full bg-black/15">
-            <Icon name={ICONE[resultado.cor]} className="size-20" />
-          </div>
-          <h2 className="mt-6 font-display text-6xl leading-none tracking-wide sm:text-7xl">{resultado.titulo}</h2>
-          {resultado.bilhete && <p className="mt-4 text-2xl font-semibold">{resultado.bilhete.nome}</p>}
-          {resultado.bilhete?.idade != null && <p className="mt-1 text-xl font-semibold opacity-90">{resultado.bilhete.idade} anos</p>}
-          <p className="mt-2 max-w-sm text-lg opacity-90">{resultado.texto}</p>
-          {resultado.bilhete && <p className="mt-2 font-mono opacity-75">{resultado.bilhete.codigo}</p>}
-          <div className="mt-10 flex w-full max-w-xs flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-            {resultado.liberar && !resultado.auto && (
-              <button onClick={async () => { const c = resultado.bilhete.codigo; if (await registrar(c)) fechar(); else validar(c); }} className="rounded-2xl bg-black/80 py-4 text-lg font-bold text-white">Documento ok · liberar</button>
-            )}
-            <button onClick={fechar} className="rounded-2xl bg-black/25 py-4 text-lg font-bold">Próximo</button>
+      {confirmar && (
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/75 sm:place-items-center" onClick={() => setConfirmar(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-t-3xl border border-amber-400/40 bg-panel p-5 sm:rounded-3xl">
+            <p className="flex items-center gap-2 font-display text-2xl tracking-wide text-amber-300"><Icon name="alert" /> Pix não confirmado</p>
+            <p className="mt-2 text-lg font-semibold">{confirmar.nome}</p>
+            <p className="mt-1 text-sm text-zinc-400">O pagamento deste pedido ainda não foi confirmado pela organização. Libere só depois de ver o comprovante do Pix.</p>
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setConfirmar(null)} className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold hover:bg-panel-2">Voltar</button>
+              <button onClick={() => { registrar(confirmar); setConfirmar(null); }} className="flex-1 rounded-xl bg-amber-400 py-3 text-sm font-bold text-ink hover:bg-amber-300">Comprovante ok · liberar</button>
+            </div>
           </div>
         </div>
       )}

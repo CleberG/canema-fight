@@ -98,7 +98,7 @@ export function Select({ value, onChange, children, className = '' }) {
 }
 
 // Menores de 18: só primeiro nome, sem Instagram.
-export const ehMenor = (a) => a.idade < 18;
+export const ehMenor = (a) => a.idade != null && a.idade < 18;
 export const nomeExibido = (a) => (ehMenor(a) ? a.nome.split(' ')[0] : a.nome);
 export const instagramExibido = (a) => (ehMenor(a) ? null : a.instagram);
 
@@ -106,20 +106,83 @@ export const instagramExibido = (a) => (ehMenor(a) ? null : a.instagram);
 export function montarCardPublico(card, lutas, atletas) {
   const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
   const lutaPorId = Object.fromEntries(lutas.map((l) => [l.id, l]));
-  const canto = (a) => ({ nome: nomeExibido(a), academia: a.academia });
+  // foto = caminho no bucket (a página pública gera o link); fotoUrl só no modo demonstração
+  const canto = (a) => ({ nome: nomeExibido(a), academia: a.academia, foto: a.fotoPath ?? null, ...(a.fotoPath ? {} : { fotoUrl: a.fotoUrl ?? null }) });
   return [...card].reverse().filter((id) => lutaPorId[id]).map((id) => {
-    const { a, b } = lutaPorId[id];
-    return { id, vermelho: canto(porId[a]), azul: canto(porId[b]), peso: Math.round(Math.max(porId[a].peso, porId[b].peso)) };
+    const { a, b, categoria } = lutaPorId[id];
+    return { id, vermelho: canto(porId[a]), azul: canto(porId[b]), peso: categoriaDaLuta(lutaPorId[id], porId[a], porId[b]), categoria: categoria ?? null };
   });
+}
+
+// "66 kg", "Peso combinado"… — rótulo definido na luta ou o maior peso dos dois atletas.
+export function categoriaDaLuta(luta, A, B) {
+  if (luta?.categoria) return luta.categoria;
+  const pesos = [A?.peso, B?.peso].filter((p) => p != null);
+  return pesos.length ? `${Math.round(Math.max(...pesos))} kg` : 'A definir';
 }
 
 export const iniciais =(nome) => nome.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
 export function Avatar({ atleta, corner = 'red', size = 'size-11' }) {
   const ring = corner === 'red' ? 'from-fight to-fight-dark' : corner === 'blue' ? 'from-corner-blue to-blue-800' : 'from-gold to-amber-700';
+  if (atleta.fotoUrl) {
+    const borda = corner === 'red' ? 'ring-fight' : corner === 'blue' ? 'ring-corner-blue' : 'ring-gold';
+    return <img src={atleta.fotoUrl} alt={nomeExibido(atleta)} className={`${size} shrink-0 rounded-full object-cover ring-2 ${borda}`} />;
+  }
   return (
     <div className={`${size} shrink-0 rounded-full bg-gradient-to-br ${ring} grid place-items-center font-display text-lg tracking-wide text-white`}>
       {iniciais(nomeExibido(atleta))}
+    </div>
+  );
+}
+
+// Reduz a foto para no máximo 800 px e converte em JPEG antes de enviar.
+export function reduzirFoto(arquivo, lado = 800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(arquivo);
+    img.onload = () => {
+      const escala = Math.min(1, lado / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * escala);
+      canvas.height = Math.round(img.height * escala);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Não foi possível ler a imagem'))), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Arquivo de imagem inválido')); };
+    img.src = url;
+  });
+}
+
+// Seletor de foto opcional (galeria ou câmera do celular). onChange recebe o Blob reduzido, ou null para remover.
+export function FotoInput({ previa, onChange, carregando }) {
+  const escolher = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      onChange(await reduzirFoto(f));
+    } catch (err) {
+      window.alert(`${err.message}. Use uma foto JPG ou PNG.`);
+    }
+  };
+  return (
+    <div className="flex items-center gap-3">
+      {previa ? (
+        <img src={previa} alt="Foto do atleta" className="size-16 rounded-full object-cover ring-2 ring-gold/60" />
+      ) : (
+        <div className="grid size-16 place-items-center rounded-full border border-dashed border-line text-zinc-500"><Icon name="camera" /></div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <label className={`cursor-pointer rounded-xl border border-line bg-panel-2 px-3 py-2 text-sm font-medium hover:bg-line ${carregando ? 'pointer-events-none opacity-50' : ''}`}>
+          {carregando ? 'Enviando…' : previa ? 'Trocar foto' : 'Adicionar foto'}
+          <input type="file" accept="image/*" className="hidden" onChange={escolher} />
+        </label>
+        {previa && !carregando && (
+          <button type="button" onClick={() => onChange(null)} className="rounded-xl px-3 py-2 text-sm text-zinc-400 hover:text-fight">Remover</button>
+        )}
+      </div>
     </div>
   );
 }

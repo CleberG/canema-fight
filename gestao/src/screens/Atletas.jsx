@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Avatar, Badge, Card, Icon, PageTitle, Select, formatarTreino, inputCls, instagramExibido, nomeExibido } from '../components/ui.jsx';
+import EditarAtleta from './EditarAtleta.jsx';
+import { Avatar, Badge, Card, Icon, PageTitle, Select, ehMenor, formatarTreino, inputCls, instagramExibido, nomeExibido } from '../components/ui.jsx';
 
 const PESOS = [
   { id: '', label: 'Todos os pesos' },
@@ -22,7 +23,7 @@ const EXPERIENCIAS = [
   { id: '4-99', label: '4+ lutas' },
 ];
 
-const PAG = { pago: ['green', 'Pago'], pendente: ['yellow', 'Pendente'], expirado: ['red', 'Expirado'] };
+const PAG = { pago: ['green', 'Inscrição paga'], pendente: ['yellow', 'Aguardando Pix'], expirado: ['red', 'Pix expirado'] };
 
 export default function Atletas({ store }) {
   const { atletas, emLuta } = store;
@@ -33,6 +34,7 @@ export default function Atletas({ store }) {
   const [exp, setExp] = useState('');
   const [status, setStatus] = useState('');
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [editando, setEditando] = useState(null);
 
   const entre = (v, faixa) => { const [a, b] = faixa.split('-').map(Number); return v >= a && v <= b; };
 
@@ -40,7 +42,7 @@ export default function Atletas({ store }) {
     if (busca && !`${a.nome} ${a.academia}`.toLowerCase().includes(busca.toLowerCase())) return false;
     if (sexo && a.sexo !== sexo) return false;
     if (peso && !entre(a.peso, peso)) return false;
-    if (idade === 'menor' ? a.idade >= 18 : idade && !entre(a.idade, idade)) return false;
+    if (idade === 'menor' ? !(a.idade < 18 && a.idade != null) : idade && (a.idade == null || !entre(a.idade, idade))) return false;
     if (exp === 'estreante' ? a.lutas > 0 : exp && !entre(a.lutas, exp)) return false;
     if (status === 'confirmado' && !emLuta.has(a.id)) return false;
     if (status === 'aguardando' && emLuta.has(a.id)) return false;
@@ -96,12 +98,14 @@ export default function Atletas({ store }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{nomeExibido(a)}</p>
                   <p className="truncate text-xs text-muted">{a.academia}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">{insta ?? (a.idade < 18 ? 'Instagram oculto (menor)' : '—')}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">{insta ?? (ehMenor(a) ? 'Instagram oculto (menor)' : '—')}</p>
                 </div>
-                {a.idade < 18 && <Badge color="blue">Menor</Badge>}
+                {ehMenor(a) && <Badge color="blue">Menor</Badge>}
+                {(a.idade == null || a.peso == null) && <Badge color="yellow">Dados a completar</Badge>}
+                <button onClick={() => setEditando(a)} className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-zinc-300 hover:border-gold/60 hover:text-gold">Editar</button>
               </div>
               <dl className="mt-3 grid grid-cols-4 gap-2 text-center">
-                {[['Idade', a.idade], ['Peso', `${a.peso}`], ['Lutas', a.lutas], ['Luvões', a.luvoes]].map(([k, v]) => (
+                {[['Idade', a.idade ?? '—'], ['Peso', a.peso ?? '—'], ['Lutas', a.lutas], ['Luvões', a.luvoes]].map(([k, v]) => (
                   <div key={k} className="rounded-lg bg-panel-2 py-1.5">
                     <dt className="text-[10px] uppercase tracking-wider text-zinc-500">{k}</dt>
                     <dd className="font-display text-xl leading-tight">{v}</dd>
@@ -119,6 +123,7 @@ export default function Atletas({ store }) {
         })}
       </div>
       {lista.length === 0 && <Card className="p-8 text-center text-sm text-muted">Nenhum atleta com esses filtros.</Card>}
+      {editando && <EditarAtleta atleta={editando} store={store} onFechar={() => setEditando(null)} />}
     </>
   );
 }

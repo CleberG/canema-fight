@@ -6,7 +6,9 @@
 export const LIMITE_PESO = 2;
 export const LIMITE_IDADE_MENOR = 2;
 
-export const ehMenor = (a) => a.idade < 18;
+export const ehMenor = (a) => a.idade != null && a.idade < 18;
+// Sem idade ou peso não dá para sugerir match com segurança.
+const completo = (a) => a.idade != null && a.peso != null;
 
 export function bloqueios(a, b) {
   const motivos = [];
@@ -45,7 +47,8 @@ export function pontuar(a, b) {
 }
 
 // Gera todos os pares válidos, do melhor para o pior.
-export function sugerirMatches(atletas, minimo = 50) {
+export function sugerirMatches(todos, minimo = 50) {
+  const atletas = todos.filter(completo);
   const lista = [];
   for (let i = 0; i < atletas.length; i++) {
     for (let j = i + 1; j < atletas.length; j++) {

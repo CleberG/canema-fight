@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Avatar, Button, Card, Icon, PageTitle, montarCardPublico, nomeExibido } from '../components/ui.jsx';
+import { Avatar, Button, Card, Icon, PageTitle, categoriaDaLuta, montarCardPublico, nomeExibido } from '../components/ui.jsx';
 
 // Arrastar e soltar com Pointer Events: funciona com mouse e com toque.
 // Arraste pela alça (⋮⋮) entre "Lutas aprovadas" e "Card do evento".
@@ -93,7 +93,7 @@ export default function MontagemCard({ store }) {
           <Avatar atleta={A} corner="red" size="size-9" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold"><span className="text-red-300">{nomeExibido(A)}</span> <span className="text-zinc-500">×</span> <span className="text-blue-300">{nomeExibido(B)}</span></p>
-            <p className="truncate text-xs text-muted">{A.sexo} · {Math.max(A.peso, B.peso).toFixed(1)} kg · {A.idade < 18 ? 'Juvenil' : 'Adulto'} · score {l.pontuacao}</p>
+            <p className="truncate text-xs text-muted">{A.sexo} · {categoriaDaLuta(l, A, B)} · {A.idade == null ? 'Idade a completar' : A.idade < 18 ? 'Juvenil' : 'Adulto'}{l.pontuacao > 0 ? ` · score ${l.pontuacao}` : ""}</p>
           </div>
           <Avatar atleta={B} corner="blue" size="size-9" />
         </div>

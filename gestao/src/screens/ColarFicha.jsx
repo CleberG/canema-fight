@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CAMPOS, FICHA_EXEMPLO, lerFicha } from '../lib/parser.js';
-import { Badge, Button, Card, Icon, PageTitle, formatarTreino, inputCls } from '../components/ui.jsx';
+import { Badge, Button, Card, FotoInput, Icon, PageTitle, formatarTreino, inputCls } from '../components/ui.jsx';
 
 const OBRIGATORIOS = ['nome', 'idade', 'sexo', 'peso', 'academia', 'lutas', 'luvoes', 'tempoTreino'];
 
@@ -24,6 +24,13 @@ export default function ColarFicha({ store }) {
   const faltando = form ? OBRIGATORIOS.filter((k) => form[k] === '' || form[k] == null) : [];
 
   const [salvando, setSalvando] = useState(false);
+  const [foto, setFoto] = useState(null); // Blob reduzido, opcional
+  const [previa, setPrevia] = useState(null);
+  const trocarFoto = (blob) => {
+    if (previa) URL.revokeObjectURL(previa);
+    setFoto(blob);
+    setPrevia(blob ? URL.createObjectURL(blob) : null);
+  };
   const salvar = async () => {
     const id = Math.max(0, ...store.atletas.map((a) => a.id)) + 1;
     const num = (k) => Number(String(form[k]).replace(',', '.')) || 0;
@@ -39,6 +46,17 @@ export default function ColarFicha({ store }) {
     } catch {
       setSalvando(false);
       return;
+    }
+    if (foto) {
+      if (store.demo) {
+        novo = { ...novo, fotoUrl: previa };
+      } else {
+        // a foto não impede o cadastro: se falhar, dá para enviar depois em Atletas › Editar
+        const enviada = await store.remoto(() => store.db.salvarFoto(store.eventoId, novo, foto)).catch(() => null);
+        if (enviada) novo = { ...novo, ...enviada };
+        URL.revokeObjectURL(previa);
+      }
+      setFoto(null); setPrevia(null);
     }
     setSalvando(false);
     store.setAtletas((l) => [...l, novo]);
@@ -97,6 +115,10 @@ export default function ColarFicha({ store }) {
                 <Badge color="green">{reconhecidos.size} reconhecidos</Badge>
                 <Badge color="yellow">{campos.filter((c) => !reconhecidos.has(c.key)).length} faltando</Badge>
                 {menor && <Badge color="blue">Menor de idade</Badge>}
+              </div>
+              <div className="mb-4">
+                <FotoInput previa={previa} onChange={trocarFoto} carregando={salvando && !!foto} />
+                <p className="mt-1 text-xs text-zinc-500">Foto opcional, visível só para a organização.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {campos.map((c) => {

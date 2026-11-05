@@ -23,7 +23,8 @@ function Kpi({ label, valor, total, cor = 'text-white', icon, sub }) {
 }
 
 export default function Dashboard({ store }) {
-  const { evento, atletas, lutas, sugestoes, ingressos, checkins, ir } = store;
+  const { evento, atletas, lutas, sugestoes, ingressos, checkins, ir, pedidos } = store;
+  const pedidosPendentes = pedidos.filter((p) => p.pagamento === 'pendente').length;
   const pagos = atletas.filter((a) => a.pagamento === 'pago').length;
   const pendentes = atletas.length - pagos;
   const vendidos = ingressos.reduce((s, i) => s + vendidosDe(i), 0);
@@ -36,7 +37,7 @@ export default function Dashboard({ store }) {
     { r: 'matches', label: 'Ver matches', icon: 'swords', desc: `${sugestoes.length} sugestões` },
     { r: 'card', label: 'Montar card', icon: 'layers', desc: `${lutas.length} lutas aprovadas` },
     { r: 'pagamentos', label: 'Cobrar Pix', icon: 'pix', desc: `${pendentes} pendentes` },
-    { r: 'portaria', label: 'Portaria', icon: 'qr', desc: 'Leitor de ingressos' },
+    { r: 'portaria', label: 'Portaria', icon: 'qr', desc: 'Lista de entrada' },
     { r: 'publico', label: 'Página pública', icon: 'ticket', desc: 'Venda de ingressos' },
   ];
 
@@ -47,10 +48,10 @@ export default function Dashboard({ store }) {
       </PageTitle>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Atletas" valor={atletas.length} icon="users" sub={`${atletas.filter((a) => a.idade < 18).length} menores`} />
+        <Kpi label="Atletas" valor={atletas.length} icon="users" sub={`${atletas.filter((a) => a.idade != null && a.idade < 18).length} menores`} />
         <Kpi label="Lutas confirmadas" valor={lutas.length} icon="swords" cor="text-gold" sub={`${store.card.length} no card`} />
         <Kpi label="Inscrições pagas" valor={pagos} total={atletas.length} icon="check" cor="text-emerald-400" />
-        <Kpi label="Pendentes" valor={pendentes} icon="alert" cor="text-amber-300" sub="Pix aguardando" />
+        <Kpi label="Inscrições pendentes" valor={pendentes} icon="alert" cor="text-amber-300" sub={`${pedidosPendentes} pedido(s) de ingresso aguardando`} />
         <Kpi label="Ingressos" valor={vendidos} total={capacidade} icon="ticket" />
         <Kpi label="Check-ins" valor={checkins} total={vendidos} icon="qr" cor="text-fight" />
       </div>
@@ -76,6 +77,13 @@ export default function Dashboard({ store }) {
               <button onClick={() => ir('pagamentos')} className="flex w-full items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-left hover:bg-amber-400/15">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-400 text-ink"><Icon name="pix" /></span>
                 <span className="flex-1 text-sm"><b>{pendentes} inscrições</b> com Pix pendente ou expirado</span>
+                <Icon name="arrowLeft" className="size-4 rotate-180 text-amber-300" />
+              </button>
+            )}
+            {pedidosPendentes > 0 && (
+              <button onClick={() => ir('pagamentos')} className="flex w-full items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-left hover:bg-amber-400/15">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-400 text-ink"><Icon name="ticket" /></span>
+                <span className="flex-1 text-sm"><b>{pedidosPendentes} pedido(s) de ingresso</b> aguardando confirmação do Pix</span>
                 <Icon name="arrowLeft" className="size-4 rotate-180 text-amber-300" />
               </button>
             )}

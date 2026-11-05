@@ -106,13 +106,25 @@ export function novoCodigo(existentes) {
 
 // Ingressos emitidos usados na portaria. status: 'valido' | 'usado' | 'cancelado'
 export const BILHETES = [
-  { codigo: 'CF3-7K2Q9', nome: 'Marina Souza Teles', idade: 29, tipo: 'Pista', lote: '2º lote', status: 'valido' },
-  { codigo: 'CF3-3H8LM', nome: 'Carlos Eduardo Ritter', idade: 41, tipo: 'Ringside', lote: 'Lote único', status: 'valido' },
-  { codigo: 'CF3-9P4XA', nome: 'Fernanda Klein', idade: 19, tipo: 'Meia-entrada', lote: '1º lote', status: 'valido' },
-  { codigo: 'CF3-1B6TR', nome: 'Rodrigo Albuquerque', idade: 35, tipo: 'Pista', lote: '1º lote', status: 'usado', horario: '18:42' },
-  { codigo: 'CF3-5Z0NC', nome: 'Patrícia Vogel', idade: 52, tipo: 'Pista', lote: '2º lote', status: 'cancelado' },
-  { codigo: 'CF3-8W3DE', nome: 'Henrique Batista', idade: 33, tipo: 'Ringside', lote: 'Lote único', status: 'valido' },
-  { codigo: 'CF3-2M7GU', nome: 'Aline Fritzen', idade: 67, tipo: 'Meia-entrada', lote: '2º lote', status: 'usado', horario: '18:55' },
+  { codigo: 'CF3-7K2Q9', nome: 'Marina Souza Teles', idade: 29, tipo: 'Pista', lote: '2º lote', status: 'valido', pedidoId: 1, pagamento: 'pago' },
+  { codigo: 'CF3-3H8LM', nome: 'Carlos Eduardo Ritter', idade: 41, tipo: 'Ringside', lote: 'Lote único', status: 'valido', pedidoId: 2, pagamento: 'pago' },
+  { codigo: 'CF3-9P4XA', nome: 'Fernanda Klein', idade: 19, tipo: 'Meia-entrada', lote: '1º lote', status: 'valido', pedidoId: 3, pagamento: 'pago' },
+  { codigo: 'CF3-1B6TR', nome: 'Rodrigo Albuquerque', idade: 35, tipo: 'Pista', lote: '1º lote', status: 'usado', horario: '18:42', pedidoId: 4, pagamento: 'pago' },
+  { codigo: 'CF3-5Z0NC', nome: 'Patrícia Vogel', idade: 52, tipo: 'Pista', lote: '2º lote', status: 'cancelado', pedidoId: 5, pagamento: 'cancelado' },
+  { codigo: 'CF3-8W3DE', nome: 'Henrique Batista', idade: 33, tipo: 'Ringside', lote: 'Lote único', status: 'valido', pedidoId: 6, pagamento: 'pago' },
+  { codigo: 'CF3-2M7GU', nome: 'Aline Fritzen', idade: 67, tipo: 'Meia-entrada', lote: '2º lote', status: 'usado', horario: '18:55', pedidoId: 7, pagamento: 'pago' },
+  { codigo: 'CF3-4R9JT', nome: 'Bianca Moretti', idade: 38, tipo: 'Pista', lote: '2º lote', status: 'valido', pedidoId: 8, pagamento: 'pendente' },
+  { codigo: 'CF3-6V2PA', nome: 'Otávio Moretti', idade: 12, tipo: 'Meia-entrada', lote: '2º lote', status: 'valido', pedidoId: 8, pagamento: 'pendente' },
 ];
+
+// Pedido = uma compra (um Pix). pagamento: 'pago' | 'pendente' | 'cancelado'
+const PRECO_DEMO = { 1: 40, 2: 120, 3: 15, 4: 30, 5: 40, 6: 120, 7: 20, 8: 60 };
+export const PEDIDOS = [...new Set(BILHETES.map((b) => b.pedidoId))].map((id) => {
+  const itens = BILHETES.filter((b) => b.pedidoId === id);
+  return {
+    id, compradorNome: itens[0].nome, compradorEmail: null, total: PRECO_DEMO[id], pagamento: itens[0].pagamento,
+    criadoEm: `2026-11-0${(id % 7) + 1}T1${id % 10}:00:00`, bilhetes: itens.map(({ codigo, nome, idade, tipo, lote }) => ({ codigo, nome, idade, tipo, lote })),
+  };
+}).reverse();
 
 export const CHECKINS_INICIAIS = 186;
