@@ -103,4 +103,34 @@ export const LUTAS = [
     vermelho: { nome: 'Amanda', equipe: '', foto: f('18', 'vermelho') },
     azul: { nome: 'Geovana', equipe: '', foto: f('18', 'azul') },
   },
+  {
+    peso: '60 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Arthur', equipe: '', foto: f('19', 'vermelho') },
+    azul: { nome: 'Vinicius', equipe: '', foto: f('19', 'azul') },
+  },
+  {
+    peso: '67 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Ana', equipe: '', foto: f('20', 'vermelho') },
+    azul: { nome: 'Letícia', equipe: '', foto: f('20', 'azul') },
+  },
+  {
+    peso: '63 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Kaue', equipe: '', foto: f('21', 'vermelho') },
+    azul: { nome: 'Pedro', equipe: '', foto: f('21', 'azul') },
+  },
+  {
+    peso: '70 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Alexandre', equipe: '', foto: f('22', 'vermelho') },
+    azul: { nome: 'Gabriel', equipe: '', foto: f('22', 'azul') },
+  },
+  {
+    peso: '94 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Guilherme', equipe: '', foto: f('23', 'vermelho') },
+    azul: { nome: 'Wellington', equipe: '', foto: f('23', 'azul') },
+  },
+  {
+    peso: 'Peso combinado', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Rafaela', equipe: '', foto: f('24', 'vermelho') },
+    azul: { nome: 'Bárbara', equipe: '', foto: f('24', 'azul') },
+  },
 ];
