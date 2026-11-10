@@ -31,6 +31,7 @@ const atletaDoBanco = (a) => ({
   academia: a.academia, professor: a.professor, cidade: a.cidade, lutas: a.lutas, luvoes: a.luvoes,
   tempoTreino: a.tempo_treino, instagram: a.instagram, telefone: a.telefone, responsavel: a.responsavel,
   pagamento: a.pagamento, pagoEm: a.pago_em, status: 'aguardando', fotoPath: a.foto_path, fotoUrl: null,
+  videoPath: a.video_path, videoUrl: null,
 });
 
 // Campos editáveis do atleta (formato das telas → colunas)
@@ -60,13 +61,18 @@ const pedidoDoBanco = (p) => ({
   bilhetes: (p.bilhetes ?? []).map((b) => ({ codigo: b.codigo, nome: b.nome, idade: b.idade, tipo: b.tipos_ingresso?.nome ?? '', lote: b.lotes?.nome ?? '' })),
 });
 
-// URLs temporárias das fotos (bucket privado)
+// Links temporários para arquivos do bucket privado: { caminho: url }
+async function assinar(caminhos, segundos) {
+  const unicos = [...new Set(caminhos.filter(Boolean))];
+  if (!unicos.length) return {};
+  const { data } = await supabase.storage.from('atletas').createSignedUrls(unicos, segundos);
+  return Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+}
+
+// URLs temporárias das fotos e vídeos (bucket privado)
 async function assinarFotos(atletas) {
-  const comFoto = atletas.filter((a) => a.fotoPath);
-  if (!comFoto.length) return atletas;
-  const { data } = await supabase.storage.from('atletas').createSignedUrls(comFoto.map((a) => a.fotoPath), 60 * 60 * 12);
-  const url = Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
-  return atletas.map((a) => (a.fotoPath ? { ...a, fotoUrl: url[a.fotoPath] ?? null } : a));
+  const url = await assinar(atletas.flatMap((a) => [a.fotoPath, a.videoPath]), 60 * 60 * 12);
+  return atletas.map((a) => ({ ...a, fotoUrl: url[a.fotoPath] ?? null, videoUrl: url[a.videoPath] ?? null }));
 }
 
 // ── Público (sem login) ──
@@ -76,17 +82,37 @@ export async function carregarPublico(eventoId = EVENTO_ID) {
     supabase.from('eventos').select('*').eq('id', eventoId).single().then(ok),
     supabase.from('tipos_ingresso').select('id, slug, nome, descricao, ordem, lotes(id, nome, preco, qtd, vendidos, ordem)').eq('evento_id', eventoId).then(ok),
   ]);
-  return { evento: eventoDoBanco(evento), cardPublico: await assinarCard(evento.card_publicado ?? []), ingressos: ingressosDoBanco(tipos) };
+  return {
+    evento: eventoDoBanco(evento), cardPublico: await assinarCard(evento.card_publicado ?? []), ingressos: ingressosDoBanco(tipos),
+    aoVivo: evento.ao_vivo ?? {},
+  };
 }
 
-// Fotos do card publicado: o bucket é privado, mas quem está no card pode ser visto pelo público.
+// Fotos e vídeos do card publicado: o bucket é privado, mas quem está no card pode ser visto pelo público.
 async function assinarCard(card) {
-  const caminhos = [...new Set(card.flatMap((l) => [l.vermelho?.foto, l.azul?.foto]).filter(Boolean))];
-  if (!caminhos.length) return card;
-  const { data } = await supabase.storage.from('atletas').createSignedUrls(caminhos, 60 * 60 * 6);
-  const url = Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
-  const canto = (c) => (c?.foto ? { ...c, fotoUrl: url[c.foto] ?? null } : c);
+  const url = await assinar(card.flatMap((l) => [l.vermelho?.foto, l.azul?.foto, l.vermelho?.video, l.azul?.video]), 60 * 60 * 8);
+  const canto = (c) => (c ? { ...c, fotoUrl: url[c.foto] ?? c.fotoUrl ?? null, videoUrl: url[c.video] ?? c.videoUrl ?? null } : c);
   return card.map((l) => ({ ...l, vermelho: canto(l.vermelho), azul: canto(l.azul) }));
+}
+
+// ── Ao vivo ──
+
+export async function lerAoVivo(eventoId) {
+  return ok(await supabase.from('eventos').select('ao_vivo').eq('id', eventoId).single()).ao_vivo ?? {};
+}
+
+export async function salvarAoVivo(eventoId, aoVivo) {
+  ok(await supabase.from('eventos').update({ ao_vivo: aoVivo }).eq('id', eventoId));
+}
+
+// Avisa quando a organização muda a luta em andamento. Devolve a função para parar de ouvir.
+export function ouvirAoVivo(eventoId, aoMudar) {
+  const canal = supabase
+    .channel(`ao-vivo-${eventoId}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'eventos', filter: `id=eq.${eventoId}` },
+      (msg) => { if (msg.new?.ao_vivo) aoMudar(msg.new.ao_vivo); })
+    .subscribe();
+  return () => { supabase.removeChannel(canal); };
 }
 
 export async function comprarIngressos(eventoId, pessoas, email) {
@@ -168,6 +194,21 @@ export async function salvarFoto(eventoId, atleta, blob) {
   if (atleta.fotoPath) await supabase.storage.from('atletas').remove([atleta.fotoPath]);
   const { data } = await supabase.storage.from('atletas').createSignedUrl(caminho, 60 * 60 * 12);
   return { fotoPath: caminho, fotoUrl: data?.signedUrl ?? null };
+}
+
+// Vídeo curto em loop (mp4, até 2 MB) para quando a luta está acontecendo.
+export async function salvarVideo(eventoId, atleta, blob) {
+  const caminho = `${eventoId}/${atleta.id}-video-${Date.now()}.mp4`;
+  ok(await supabase.storage.from('atletas').upload(caminho, blob, { contentType: 'video/mp4' }));
+  ok(await supabase.from('atletas').update({ video_path: caminho }).eq('id', atleta.id));
+  if (atleta.videoPath) await supabase.storage.from('atletas').remove([atleta.videoPath]);
+  const { data } = await supabase.storage.from('atletas').createSignedUrl(caminho, 60 * 60 * 12);
+  return { videoPath: caminho, videoUrl: data?.signedUrl ?? null };
+}
+
+export async function removerVideo(atleta) {
+  ok(await supabase.from('atletas').update({ video_path: null }).eq('id', atleta.id));
+  if (atleta.videoPath) await supabase.storage.from('atletas').remove([atleta.videoPath]);
 }
 
 export async function removerFoto(atleta) {

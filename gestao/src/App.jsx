@@ -13,6 +13,7 @@ import Pagamentos from './screens/Pagamentos.jsx';
 import PaginaPublica from './screens/PaginaPublica.jsx';
 import Portaria from './screens/Portaria.jsx';
 import Configuracoes from './screens/Configuracoes.jsx';
+import AoVivo from './screens/AoVivo.jsx';
 
 const CHAVE_EVENTO = 'canema.evento';
 
@@ -32,12 +33,13 @@ export const ROTAS = [
   { id: 'atletas', label: 'Atletas', icon: 'users' },
   { id: 'matches', label: 'Matches', icon: 'swords' },
   { id: 'card', label: 'Montar card', icon: 'layers' },
+  { id: 'aovivo', label: 'Ao vivo', icon: 'play' },
   { id: 'pagamentos', label: 'Pagamentos', icon: 'pix' },
   { id: 'publico', label: 'Página pública', icon: 'ticket' },
   { id: 'portaria', label: 'Portaria', icon: 'qr' },
   { id: 'config', label: 'Configurações', icon: 'settings' },
 ];
-const BOTTOM = ['dashboard', 'ficha', 'matches', 'card'];
+const BOTTOM = ['dashboard', 'matches', 'card', 'aovivo'];
 const TELA_CHEIA = ['publico', 'portaria'];
 
 function rotaAtual() {
@@ -86,6 +88,7 @@ export default function App() {
   const [pedidos, setPedidos] = useState(demo ? PEDIDOS : []);
   const [checkins, setCheckins] = useState(demo ? CHECKINS_INICIAIS : 0);
   const [ingressos, setIngressos] = useState(demo ? INGRESSOS : []);
+  const [aoVivo, setAoVivoState] = useState({}); // luta em andamento e resultados (lib/aovivo.js)
 
   // Supabase: sessão do organizador e carga dos dados
   const [sessao, setSessao] = useState(null);
@@ -114,7 +117,7 @@ export default function App() {
       .then((d) => {
         setEventoId(d.eventoId); setEventoState(d.evento); setAtletas(d.atletas); setLutas(d.lutas);
         setRecusados(d.recusados); setCardState(d.card); setCardPublicado(d.cardPublico);
-        setBilhetes(d.bilhetes); setPedidos(d.pedidos); setCheckins(d.checkins); setIngressos(d.ingressos);
+        setBilhetes(d.bilhetes); setPedidos(d.pedidos); setCheckins(d.checkins); setIngressos(d.ingressos); setAoVivoState(d.aoVivo);
         setCarga({ estado: 'ok', erro: null });
       })
       .catch((e) => setCarga({ estado: 'erro', erro: e.message }));
@@ -124,9 +127,19 @@ export default function App() {
   useEffect(() => {
     if (demo || !authPronto || usuario || rota !== 'publico') return;
     db.carregarPublico()
-      .then((d) => { setEventoState(d.evento); setIngressos(d.ingressos); setCardPublicado(d.cardPublico); setCarga({ estado: 'publico', erro: null }); })
+      .then((d) => { setEventoState(d.evento); setIngressos(d.ingressos); setCardPublicado(d.cardPublico); setAoVivoState(d.aoVivo); setCarga({ estado: 'publico', erro: null }); })
       .catch((e) => setCarga({ estado: 'erro', erro: e.message }));
   }, [demo, authPronto, usuario, rota]);
+
+  // Lutas ao vivo: mudanças feitas em outro aparelho chegam na hora (Realtime).
+  // Na página pública também confere a cada 30 s, caso a conexão em tempo real caia.
+  const pronto = carga.estado === 'ok' || carga.estado === 'publico';
+  useEffect(() => {
+    if (demo || !pronto) return undefined;
+    const parar = db.ouvirAoVivo(eventoId, setAoVivoState);
+    const timer = rota === 'publico' ? setInterval(() => db.lerAoVivo(eventoId).then(setAoVivoState).catch(() => {}), 30000) : null;
+    return () => { parar(); if (timer) clearInterval(timer); };
+  }, [demo, pronto, eventoId, rota]);
 
   const ir = (r) => { window.location.hash = `/${r}`; };
 
@@ -140,6 +153,10 @@ export default function App() {
     } else {
       remoto(() => db.salvarEvento(eventoId, novo)).catch(() => {});
     }
+  };
+  const setAoVivo = (novo) => {
+    setAoVivoState(novo);
+    remoto(() => db.salvarAoVivo(eventoId, novo)).catch(() => {});
   };
   const setCard = (f) => {
     const novo = typeof f === 'function' ? f(card) : f;
@@ -156,7 +173,7 @@ export default function App() {
   const store = {
     evento, setEvento, eventoId, atletas, setAtletas, lutas, setLutas, recusados, setRecusados,
     card, setCard, cardPublicado, setCardPublicado, bilhetes, setBilhetes, pedidos, setPedidos, checkins, setCheckins, ingressos, setIngressos,
-    emLuta, sugestoes, ir, demo, db, remoto, setAviso,
+    emLuta, sugestoes, ir, demo, db, remoto, setAviso, aoVivo, setAoVivo,
   };
 
   const toast = aviso && (
@@ -185,7 +202,7 @@ export default function App() {
 
   if (rota === 'portaria') return <><Portaria store={store} />{toast}</>;
 
-  const TELAS = { dashboard: Dashboard, ficha: ColarFicha, atletas: Atletas, matches: Matches, card: MontagemCard, pagamentos: Pagamentos, config: Configuracoes };
+  const TELAS = { dashboard: Dashboard, ficha: ColarFicha, atletas: Atletas, matches: Matches, card: MontagemCard, aovivo: AoVivo, pagamentos: Pagamentos, config: Configuracoes };
   const Tela = TELAS[rota] ?? Dashboard;
 
   const NavItem = ({ r, compacto }) => {

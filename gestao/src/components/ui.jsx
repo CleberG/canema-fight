@@ -28,6 +28,10 @@ const PATHS = {
   camera: 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2zM12 17a4 4 0 100-8 4 4 0 000 8z',
   external: 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3',
   settings: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
+  play: 'M6 4l14 8-14 8z',
+  stop: 'M6 6h12v12H6z',
+  undo: 'M3 7v6h6M3 13a9 9 0 103-7.7L3 8',
+  video: 'M23 7l-7 5 7 5zM1 5h15v14H1z',
   trophy:'M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0zM17 5h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3',
 };
 
@@ -106,8 +110,12 @@ export const instagramExibido = (a) => (ehMenor(a) ? null : a.instagram);
 export function montarCardPublico(card, lutas, atletas) {
   const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
   const lutaPorId = Object.fromEntries(lutas.map((l) => [l.id, l]));
-  // foto = caminho no bucket (a página pública gera o link); fotoUrl só no modo demonstração
-  const canto = (a) => ({ nome: nomeExibido(a), academia: a.academia, foto: a.fotoPath ?? null, ...(a.fotoPath ? {} : { fotoUrl: a.fotoUrl ?? null }) });
+  // foto/video = caminho no bucket (a página pública gera o link); fotoUrl/videoUrl só no modo demonstração
+  const canto = (a) => ({
+    nome: nomeExibido(a), academia: a.academia,
+    foto: a.fotoPath ?? null, ...(a.fotoPath ? {} : { fotoUrl: a.fotoUrl ?? null }),
+    video: a.videoPath ?? null, ...(a.videoPath ? {} : { videoUrl: a.videoUrl ?? null }),
+  });
   return [...card].reverse().filter((id) => lutaPorId[id]).map((id) => {
     const { a, b, categoria } = lutaPorId[id];
     return { id, vermelho: canto(porId[a]), azul: canto(porId[b]), peso: categoriaDaLuta(lutaPorId[id], porId[a], porId[b]), categoria: categoria ?? null };

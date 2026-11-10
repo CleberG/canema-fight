@@ -12,6 +12,37 @@ export const STATUS_INSCRICAO = [
 ];
 
 const num = (v) => Number(String(v).replace(',', '.'));
+const VIDEO_MAX = 2 * 1024 * 1024; // limite do bucket
+
+// Vídeo curto (mp4) que aparece na página pública enquanto a luta do atleta está acontecendo.
+function VideoInput({ previa, onChange, carregando }) {
+  const escolher = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.type !== 'video/mp4') { window.alert('Use um vídeo MP4.'); return; }
+    if (f.size > VIDEO_MAX) { window.alert('O vídeo passa de 2 MB. Corte para 3 a 5 segundos ou reduza a qualidade.'); return; }
+    onChange(f);
+  };
+  return (
+    <div className="flex items-center gap-3">
+      {previa ? (
+        <video src={previa} autoPlay muted loop playsInline className="size-16 rounded-xl object-cover ring-2 ring-fight/60" />
+      ) : (
+        <div className="grid size-16 place-items-center rounded-xl border border-dashed border-line text-zinc-500"><Icon name="video" /></div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <label className={`cursor-pointer rounded-xl border border-line bg-panel-2 px-3 py-2 text-sm font-medium hover:bg-line ${carregando ? 'pointer-events-none opacity-50' : ''}`}>
+          {carregando ? 'Enviando…' : previa ? 'Trocar vídeo' : 'Adicionar vídeo'}
+          <input type="file" accept="video/mp4" className="hidden" onChange={escolher} />
+        </label>
+        {previa && !carregando && (
+          <button type="button" onClick={() => onChange(null)} className="rounded-xl px-3 py-2 text-sm text-zinc-400 hover:text-fight">Remover</button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // Modal de edição: dados da ficha, foto opcional e status da inscrição.
 export default function EditarAtleta({ atleta, store, onFechar }) {
@@ -20,6 +51,8 @@ export default function EditarAtleta({ atleta, store, onFechar }) {
   const [pagamento, setPagamento] = useState(atleta.pagamento);
   const [foto, setFoto] = useState(undefined); // undefined = sem mudança, null = remover, Blob = nova
   const [previa, setPrevia] = useState(atleta.fotoUrl);
+  const [video, setVideo] = useState(undefined); // undefined = sem mudança, null = remover, File = novo
+  const [previaVideo, setPreviaVideo] = useState(atleta.videoUrl ?? null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
 
@@ -28,6 +61,11 @@ export default function EditarAtleta({ atleta, store, onFechar }) {
   useEffect(() => () => {
     if (!salvoRef.current && previa?.startsWith('blob:') && previa !== atleta.fotoUrl) URL.revokeObjectURL(previa);
   }, [previa, atleta.fotoUrl]);
+
+  const trocarVideo = (arquivo) => {
+    setVideo(arquivo);
+    setPreviaVideo(arquivo ? URL.createObjectURL(arquivo) : null);
+  };
 
   const trocarFoto = (blob) => {
     setFoto(blob);
@@ -55,6 +93,13 @@ export default function EditarAtleta({ atleta, store, onFechar }) {
       } else if (foto) {
         const enviada = demo ? { fotoPath: null, fotoUrl: previa } : await remoto(() => db.salvarFoto(store.eventoId, atleta, foto));
         novo = { ...novo, ...enviada };
+      }
+      if (video === null) {
+        await remoto(() => db.removerVideo(atleta));
+        novo = { ...novo, videoPath: null, videoUrl: null };
+      } else if (video) {
+        const enviado = demo ? { videoPath: null, videoUrl: previaVideo } : await remoto(() => db.salvarVideo(store.eventoId, atleta, video));
+        novo = { ...novo, ...enviado };
       }
     } catch (err) {
       setErro(err.message);
@@ -88,6 +133,11 @@ export default function EditarAtleta({ atleta, store, onFechar }) {
           </label>
         </div>
         <p className="-mt-2 mb-4 text-xs text-zinc-500">Foto opcional. Fica visível só para a organização{menor ? ' — atleta menor de idade' : ''}.</p>
+
+        <div className="mb-4">
+          <VideoInput previa={previaVideo} onChange={trocarVideo} carregando={salvando && !!video} />
+          <p className="mt-2 text-xs text-zinc-500">Vídeo opcional (MP4, até 2 MB, 3 a 5 segundos, atleta de frente). Passa em loop na página pública enquanto a luta acontece. Depois de trocar, publique o card de novo.</p>
+        </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {CAMPOS.filter((c) => c.key !== 'responsavel' || menor).map((c) => {

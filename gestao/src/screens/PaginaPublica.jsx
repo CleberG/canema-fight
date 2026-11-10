@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { loteAtual, novoCodigo, venderNoLote } from '../lib/data.js';
 import { TIPOS_CHAVE } from '../lib/pix.js';
 import { Button, Icon, brl, iniciais, inputCls, montarCardPublico } from '../components/ui.jsx';
+import { normalizar, proxima, situacao } from '../lib/aovivo.js';
 
 const MAX_POR_COMPRA = 10;
 
@@ -10,21 +11,42 @@ const nomeOk = (n) => n.trim().split(/\s+/).filter((p) => p.length > 1).length >
 const idadeOk = (v) => /^\d{1,3}$/.test(String(v).trim()) && Number(v) <= 120;
 
 // Um lado do confronto: foto grande (ou iniciais), nome e equipe.
-function Lutador({ atleta, canto }) {
-  const cor = canto === 'red' ? 'ring-fight/70' : 'ring-corner-blue/70';
+// Ao vivo: vídeo curto em loop (ou a foto "respirando", se não houver vídeo). resultado: 'ganhou' | 'perdeu' | null
+function Lutador({ atleta, canto, aoVivo = false, resultado = null }) {
+  const cor = resultado === 'ganhou' ? 'ring-gold' : canto === 'red' ? 'ring-fight/70' : 'ring-corner-blue/70';
   const fundo = canto === 'red' ? 'from-fight to-fight-dark' : 'from-corner-blue to-blue-800';
+  const mexe = aoVivo ? 'animate-respira' : '';
+  let midia;
+  if (aoVivo && atleta.videoUrl) {
+    midia = (
+      <video
+        key={atleta.videoUrl} src={atleta.videoUrl} poster={atleta.fotoUrl ?? undefined}
+        autoPlay muted loop playsInline preload="auto" aria-label={`${atleta.nome} em ação`}
+        className="size-full object-cover"
+      />
+    );
+  } else if (atleta.fotoUrl) {
+    midia = <img src={atleta.fotoUrl} alt={atleta.nome} loading="lazy" className={`size-full object-cover ${mexe}`} />;
+  } else {
+    midia = <div className={`grid size-full place-items-center bg-gradient-to-br ${fundo} font-display text-4xl text-white ${mexe}`}>{iniciais(atleta.nome)}</div>;
+  }
   return (
-    <div className={`min-w-0 ${canto === 'blue' ? 'text-right' : ''}`}>
-      {atleta.fotoUrl ? (
-        <img src={atleta.fotoUrl} alt={atleta.nome} loading="lazy" className={`aspect-square w-full rounded-2xl object-cover ring-2 ${cor}`} />
-      ) : (
-        <div className={`grid aspect-square w-full place-items-center rounded-2xl bg-gradient-to-br ${fundo} font-display text-4xl text-white ring-2 ${cor}`}>{iniciais(atleta.nome)}</div>
-      )}
+    <div className={`min-w-0 ${canto === 'blue' ? 'text-right' : ''} ${resultado === 'perdeu' ? 'opacity-45 grayscale' : ''}`}>
+      <div className={`relative aspect-square w-full overflow-hidden rounded-2xl ${resultado === 'ganhou' ? 'ring-4' : 'ring-2'} ${cor} ${aoVivo ? 'brilho-ao-vivo' : ''}`}>
+        {midia}
+        {resultado === 'ganhou' && (
+          <span className={`absolute bottom-2 ${canto === 'blue' ? 'right-2' : 'left-2'} inline-flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold uppercase text-ink`}>
+            <Icon name="trophy" className="size-3.5" /> Venceu
+          </span>
+        )}
+      </div>
       <p className={`mt-2 truncate font-display text-xl leading-none tracking-wide sm:text-2xl ${canto === 'red' ? 'text-red-300' : 'text-blue-300'}`}>{atleta.nome}</p>
       {atleta.academia && <p className="truncate text-xs text-muted">{atleta.academia}</p>}
     </div>
   );
 }
+
+const ladoDoResultado = (vencedor, lado) => (!vencedor || vencedor === 'empate' ? null : vencedor === lado ? 'ganhou' : 'perdeu');
 
 export default function PaginaPublica({ store, carga }) {
   const { evento, ingressos, setIngressos, card, lutas, atletas, bilhetes, setBilhetes } = store;
@@ -37,6 +59,9 @@ export default function PaginaPublica({ store, carga }) {
   const [erroCompra, setErroCompra] = useState(null);
   // Demonstração mostra o card ao vivo; com Supabase, só o que o organizador publicou.
   const cardLista = store.demo ? montarCardPublico(card, lutas, atletas) : store.cardPublicado;
+  const aoVivo = normalizar(store.aoVivo);
+  const lutaAtual = cardLista.find((l) => l.id === aoVivo.atual) ?? null;
+  const proximaLuta = proxima(cardLista, aoVivo);
 
   // Por enquanto há um único tipo de ingresso; o preço vem do lote vigente, sem exibir o lote.
   const tipo = ingressos[0] ?? null;
@@ -149,6 +174,25 @@ export default function PaginaPublica({ store, carga }) {
       </header>
 
       <main className="mx-auto max-w-4xl space-y-10 px-4 pt-8">
+        {lutaAtual && (
+          <section aria-live="polite">
+            <h2 className="mb-3 flex items-center gap-2 font-display text-3xl tracking-wide">
+              <span className="size-3 animate-pulse rounded-full bg-fight" /> Acontecendo agora
+            </h2>
+            <article className="relative overflow-hidden rounded-3xl border border-fight/70 bg-gradient-to-b from-fight/20 to-panel p-3 shadow-2xl shadow-fight/20 sm:p-5">
+              <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+                <Lutador atleta={lutaAtual.vermelho} canto="red" aoVivo />
+                <div className="flex w-16 flex-col items-center text-center sm:w-24">
+                  <span className="rounded-full bg-fight px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">Ao vivo</span>
+                  <p className="mt-1 font-display text-4xl leading-none text-fight sm:text-5xl">VS</p>
+                  {lutaAtual.peso && <p className="mt-1 text-[11px] font-semibold leading-tight text-zinc-300">{lutaAtual.peso}</p>}
+                </div>
+                <Lutador atleta={lutaAtual.azul} canto="blue" aoVivo />
+              </div>
+            </article>
+          </section>
+        )}
+
         <section>
           <h2 className="mb-1 font-display text-3xl tracking-wide">Card de lutas</h2>
           {cardLista.length > 0 && <p className="mb-4 text-sm text-muted">{cardLista.length} lutas confirmadas</p>}
@@ -157,18 +201,29 @@ export default function PaginaPublica({ store, carga }) {
               const principal = i === 0;
               const numero = cardLista.length - i;
               const categoria = typeof l.peso === 'number' ? `${l.peso} kg` : l.peso;
+              const s = situacao(aoVivo, l.id);
+              const vencedor = aoVivo.resultados[l.id]?.vencedor ?? null;
+              const borda = s === 'ao_vivo' ? 'border-fight/70 bg-panel' : principal ? 'border-gold/60 bg-gradient-to-b from-gold/10 to-panel' : 'border-line bg-panel';
+              const ehProxima = s === 'aguardando' && proximaLuta?.id === l.id && aoVivo.atual == null && Object.keys(aoVivo.resultados).length > 0;
               return (
-                <article key={l.id} className={`relative overflow-hidden rounded-3xl border p-3 sm:p-4 ${principal ? 'border-gold/60 bg-gradient-to-b from-gold/10 to-panel' : 'border-line bg-panel'}`}>
+                <article key={l.id} className={`relative overflow-hidden rounded-3xl border p-3 sm:p-4 ${borda}`}>
                   <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-fight/15 to-transparent" />
                   <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-corner-blue/15 to-transparent" />
                   <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
-                    <Lutador atleta={l.vermelho} canto="red" />
+                    <Lutador atleta={l.vermelho} canto="red" resultado={ladoDoResultado(vencedor, 'vermelho')} />
                     <div className="flex w-16 flex-col items-center text-center sm:w-24">
                       <p className={`text-[10px] font-bold uppercase tracking-widest ${principal ? 'text-gold' : 'text-zinc-500'}`}>{principal ? 'Principal' : `Luta ${String(numero).padStart(2, '0')}`}</p>
                       <p className="font-display text-4xl leading-none text-fight sm:text-5xl">VS</p>
                       {categoria && <p className="mt-1 text-[11px] font-semibold leading-tight text-zinc-300">{categoria}</p>}
+                      {s === 'ao_vivo' && (
+                        <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-fight px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                          <span className="size-1.5 animate-pulse rounded-full bg-white" />Ao vivo
+                        </span>
+                      )}
+                      {s === 'encerrada' && <span className="mt-1.5 rounded-full bg-zinc-700/60 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-300">{vencedor === 'empate' ? 'Empate' : 'Encerrada'}</span>}
+                      {ehProxima && <span className="mt-1.5 rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-gold">Próxima</span>}
                     </div>
-                    <Lutador atleta={l.azul} canto="blue" />
+                    <Lutador atleta={l.azul} canto="blue" resultado={ladoDoResultado(vencedor, 'azul')} />
                   </div>
                 </article>
               );
