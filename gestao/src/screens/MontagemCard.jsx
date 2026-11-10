@@ -131,11 +131,22 @@ export default function MontagemCard({ store }) {
 
   // Publicado = o que a página pública mostra é igual ao card atual
   const cardPublico = montarCardPublico(card, lutas, atletas);
-  const publicado = card.length > 0 && JSON.stringify(cardPublico) === JSON.stringify(store.cardPublicado);
+  // Compara sem os links temporários de foto/vídeo (gerados a cada carga) e com as chaves
+  // em ordem fixa (o banco guarda o JSON com as chaves reordenadas).
+  const ordenado = (x) => (Array.isArray(x) ? x.map(ordenado)
+    : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, ordenado(x[k])])) : x);
+  const semLinks = (c) => JSON.stringify(ordenado(c.map((l) => {
+    const tirar = ({ fotoUrl: _f, videoUrl: _v, ...x }) => x;
+    return { ...l, vermelho: tirar(l.vermelho), azul: tirar(l.azul) };
+  })));
+  const publicado = card.length > 0 && semLinks(cardPublico) === semLinks(store.cardPublicado);
   const publicar = () => {
     const anterior = store.cardPublicado;
     store.setCardPublicado(cardPublico);
-    store.remoto(() => store.db.publicarCard(store.eventoId, cardPublico)).catch(() => store.setCardPublicado(anterior));
+    store.remoto(() => store.db.publicarCard(store.eventoId, cardPublico))
+      // gera os links das fotos e vídeos para a página pública aberta neste aparelho
+      .then(() => (store.demo ? null : store.db.assinarCard(cardPublico).then(store.setCardPublicado)))
+      .catch(() => store.setCardPublicado(anterior));
   };
 
   return (

@@ -89,7 +89,7 @@ export async function carregarPublico(eventoId = EVENTO_ID) {
 }
 
 // Fotos e vídeos do card publicado: o bucket é privado, mas quem está no card pode ser visto pelo público.
-async function assinarCard(card) {
+export async function assinarCard(card) {
   const url = await assinar(card.flatMap((l) => [l.vermelho?.foto, l.azul?.foto, l.vermelho?.video, l.azul?.video]), 60 * 60 * 8);
   const canto = (c) => (c ? { ...c, fotoUrl: url[c.foto] ?? c.fotoUrl ?? null, videoUrl: url[c.video] ?? c.videoUrl ?? null } : c);
   return card.map((l) => ({ ...l, vermelho: canto(l.vermelho), azul: canto(l.azul) }));

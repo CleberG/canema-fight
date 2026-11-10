@@ -140,6 +140,13 @@ export default function AoVivo({ store }) {
                     </button>
                   ))}
                   {!r.vencedor && <span className="text-zinc-500">sem resultado</span>}
+                  <button
+                    onClick={() => setAoVivo(iniciar(v, l.id))}
+                    disabled={!!v.atual}
+                    className="ml-auto inline-flex items-center gap-1 text-zinc-500 hover:text-white disabled:opacity-30"
+                  >
+                    <Icon name="undo" className="size-3.5" /> Reiniciar luta
+                  </button>
                 </div>
               )}
             </Card>
