@@ -133,4 +133,19 @@ export const LUTAS = [
     vermelho: { nome: 'Rafaela', equipe: '', foto: f('24', 'vermelho') },
     azul: { nome: 'Bárbara', equipe: '', foto: f('24', 'azul') },
   },
+  {
+    peso: '85 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Bruno', equipe: '', foto: f('25', 'vermelho') },
+    azul: { nome: 'João', equipe: '', foto: f('25', 'azul') },
+  },
+  {
+    peso: '65 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Ramon', equipe: '', foto: f('26', 'vermelho') },
+    azul: { nome: 'Lucas', equipe: '', foto: f('26', 'azul') },
+  },
+  {
+    peso: '68 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Lucas', equipe: '', foto: f('27', 'vermelho') },
+    azul: { nome: 'Lucas', equipe: '', foto: f('27', 'azul') },
+  },
 ];
