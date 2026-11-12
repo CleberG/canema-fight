@@ -148,4 +148,59 @@ export const LUTAS = [
     vermelho: { nome: 'Lucas', equipe: '', foto: f('27', 'vermelho') },
     azul: { nome: 'Lucas', equipe: '', foto: f('27', 'azul') },
   },
+  {
+    peso: '57 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Gustavo', equipe: '', foto: f('28', 'vermelho') },
+    azul: { nome: 'Alisson', equipe: '', foto: f('28', 'azul') },
+  },
+  {
+    peso: '64 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Arthur', equipe: '', foto: f('29', 'vermelho') },
+    azul: { nome: 'Djeferson', equipe: '', foto: f('29', 'azul') },
+  },
+  {
+    peso: '78 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Roger', equipe: '', foto: f('30', 'vermelho') },
+    azul: { nome: 'Jairo', equipe: '', foto: f('30', 'azul') },
+  },
+  {
+    peso: '53 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Sarah', equipe: '', foto: f('31', 'vermelho') },
+    azul: { nome: 'Ariela', equipe: '', foto: f('31', 'azul') },
+  },
+  {
+    peso: '74 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Ygor', equipe: '', foto: f('32', 'vermelho') },
+    azul: { nome: 'Lucas', equipe: '', foto: f('32', 'azul') },
+  },
+  {
+    peso: 'Peso pesado', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Ruan', equipe: '', foto: f('33', 'vermelho') },
+    azul: { nome: 'Pedro', equipe: '', foto: f('33', 'azul') },
+  },
+  {
+    peso: '62 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Geovana', equipe: '', foto: f('34', 'vermelho') },
+    azul: { nome: 'Laísa', equipe: '', foto: f('34', 'azul') },
+  },
+  {
+    peso: 'Peso pesado', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Creomar', equipe: '', foto: f('35', 'vermelho') },
+    azul: { nome: 'Lucas', equipe: '', foto: f('35', 'azul') },
+  },
+  {
+    peso: '60 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Isabella', equipe: '', foto: f('36', 'vermelho') },
+    azul: { nome: 'Rebeca', equipe: '', foto: f('36', 'azul') },
+  },
+  {
+    peso: '75 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Herivelto', equipe: '', foto: f('37', 'vermelho') },
+    azul: { nome: 'Elemar', equipe: '', foto: f('37', 'azul') },
+  },
+  {
+    peso: '75 kg', modalidade: null, vencedor: null,
+    vermelho: { nome: 'Juan', equipe: '', foto: f('38', 'vermelho') },
+    azul: { nome: 'Danyel', equipe: '', foto: f('38', 'azul') },
+  },
 ];
