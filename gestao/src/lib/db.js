@@ -41,6 +41,8 @@ const atletaParaBanco = (a) => ({
   tempo_treino: a.tempoTreino, instagram: a.instagram || '', telefone: a.telefone || '', responsavel: a.responsavel || '',
 });
 
+const TIPOS_COLS = 'id, slug, nome, descricao, ordem, lotes(id, nome, preco, qtd, vendidos, ordem)';
+
 const ingressosDoBanco = (tipos) => tipos
   .sort((x, y) => x.ordem - y.ordem)
   .map((t) => ({
@@ -80,12 +82,32 @@ async function assinarFotos(atletas) {
 export async function carregarPublico(eventoId = EVENTO_ID) {
   const [evento, tipos] = await Promise.all([
     supabase.from('eventos').select('*').eq('id', eventoId).single().then(ok),
-    supabase.from('tipos_ingresso').select('id, slug, nome, descricao, ordem, lotes(id, nome, preco, qtd, vendidos, ordem)').eq('evento_id', eventoId).then(ok),
+    supabase.from('tipos_ingresso').select(TIPOS_COLS).eq('evento_id', eventoId).then(ok),
   ]);
   return {
     evento: eventoDoBanco(evento), cardPublico: await assinarCard(evento.card_publicado ?? []), ingressos: ingressosDoBanco(tipos),
     aoVivo: evento.ao_vivo ?? {},
   };
+}
+
+export async function carregarIngressos(eventoId = EVENTO_ID) {
+  return ingressosDoBanco(ok(await supabase.from('tipos_ingresso').select(TIPOS_COLS).eq('evento_id', eventoId)));
+}
+
+// Grava os lotes editados em Configurações: altera, cria os novos e remove os que saíram
+// (só lote sem vendas pode ser removido). A ordem da lista define a ordem de venda.
+export async function salvarLotes(eventoId, tipos, antes) {
+  const agora = new Set(tipos.flatMap((t) => t.lotes.map((l) => l.id).filter(Boolean)));
+  const remover = antes.flatMap((t) => t.lotes.map((l) => l.id)).filter((id) => id && !agora.has(id));
+  if (remover.length) ok(await supabase.from('lotes').delete().in('id', remover));
+  for (const t of tipos) {
+    for (const [i, l] of t.lotes.entries()) {
+      const linha = { nome: l.nome, preco: l.preco, qtd: l.qtd, ordem: i + 1 };
+      if (l.id) ok(await supabase.from('lotes').update(linha).eq('id', l.id));
+      else ok(await supabase.from('lotes').insert({ ...linha, tipo_id: t.dbId }));
+    }
+  }
+  return carregarIngressos(eventoId);
 }
 
 // Fotos e vídeos do card publicado: o bucket é privado, mas quem está no card pode ser visto pelo público.
