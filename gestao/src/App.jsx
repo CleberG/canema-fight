@@ -14,6 +14,7 @@ import PaginaPublica from './screens/PaginaPublica.jsx';
 import Portaria from './screens/Portaria.jsx';
 import Configuracoes from './screens/Configuracoes.jsx';
 import AoVivo from './screens/AoVivo.jsx';
+import TelaTV from './screens/TelaTV.jsx';
 
 const CHAVE_EVENTO = 'canema.evento';
 
@@ -36,11 +37,13 @@ export const ROTAS = [
   { id: 'aovivo', label: 'Ao vivo', icon: 'play' },
   { id: 'pagamentos', label: 'Pagamentos', icon: 'pix' },
   { id: 'publico', label: 'Página pública', icon: 'ticket' },
+  { id: 'tv', label: 'Tela da TV', icon: 'tv' },
   { id: 'portaria', label: 'Portaria', icon: 'qr' },
   { id: 'config', label: 'Configurações', icon: 'settings' },
 ];
 const BOTTOM = ['dashboard', 'matches', 'card', 'aovivo'];
-const TELA_CHEIA = ['publico', 'portaria'];
+const TELA_CHEIA = ['publico', 'tv', 'portaria'];
+const PUBLICAS = ['publico', 'tv']; // abrem sem login
 
 function rotaAtual() {
   const r = window.location.hash.replace('#/', '');
@@ -125,19 +128,19 @@ export default function App() {
 
   // Visitante sem login: só os dados públicos do evento
   useEffect(() => {
-    if (demo || !authPronto || usuario || rota !== 'publico') return;
+    if (demo || !authPronto || usuario || !PUBLICAS.includes(rota)) return;
     db.carregarPublico()
       .then((d) => { setEventoState(d.evento); setIngressos(d.ingressos); setCardPublicado(d.cardPublico); setAoVivoState(d.aoVivo); setCarga({ estado: 'publico', erro: null }); })
       .catch((e) => setCarga({ estado: 'erro', erro: e.message }));
   }, [demo, authPronto, usuario, rota]);
 
   // Lutas ao vivo: mudanças feitas em outro aparelho chegam na hora (Realtime).
-  // Na página pública também confere a cada 30 s, caso a conexão em tempo real caia.
+  // Na página pública (30 s) e na TV (15 s) também confere de tempos em tempos, caso a conexão em tempo real caia.
   const pronto = carga.estado === 'ok' || carga.estado === 'publico';
   useEffect(() => {
     if (demo || !pronto) return undefined;
     const parar = db.ouvirAoVivo(eventoId, setAoVivoState);
-    const timer = rota === 'publico' ? setInterval(() => db.lerAoVivo(eventoId).then(setAoVivoState).catch(() => {}), 30000) : null;
+    const timer = PUBLICAS.includes(rota) ? setInterval(() => db.lerAoVivo(eventoId).then(setAoVivoState).catch(() => {}), rota === 'tv' ? 15000 : 30000) : null;
     return () => { parar(); if (timer) clearInterval(timer); };
   }, [demo, pronto, eventoId, rota]);
 
@@ -191,6 +194,7 @@ export default function App() {
 
   if (rota === 'login') return <Login onEntrar={entrar} demo={demo} />;
   if (rota === 'publico') return <>{<PaginaPublica store={store} carga={carga} />}{toast}</>;
+  if (rota === 'tv') return <TelaTV store={store} carga={carga} />;
 
   // Fora do modo demonstração, as telas do organizador exigem login.
   if (!demo) {
