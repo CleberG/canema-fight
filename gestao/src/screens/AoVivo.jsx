@@ -17,6 +17,23 @@ function Tempo({ inicio }) {
   return <span className="font-mono tabular-nums">{tempoDecorrido(inicio, agora)}</span>;
 }
 
+// Se os atletas da luta já chegaram (portaria). id da luta = "<vermelho>-<azul>" (ids dos atletas)
+function Chegada({ l, atletas }) {
+  const [idV, idA] = String(l.id).split('-').map(Number);
+  const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
+  const lado = (a, nome) => {
+    if (!a) return null;
+    const primeiro = nome.split(' ')[0];
+    return a.chegouEm
+      ? <span className="text-emerald-300">✓ {primeiro} chegou</span>
+      : <span className="text-amber-300">{primeiro} ainda não chegou</span>;
+  };
+  const v = lado(porId[idV], l.vermelho.nome);
+  const az = lado(porId[idA], l.azul.nome);
+  if (!v && !az) return null;
+  return <p className="mt-2 flex justify-center gap-4 text-xs">{v}{az}</p>;
+}
+
 function Confronto({ l, grande }) {
   return (
     <div className={`grid grid-cols-[1fr_auto_1fr] items-center gap-2 ${grande ? 'text-2xl sm:text-3xl' : 'text-lg'}`}>
@@ -39,6 +56,19 @@ export default function AoVivo({ store }) {
   const encerradas = ordem.filter((l) => v.resultados[l.id]).length;
   const ultima = !atual && v.ultima ? ordem.find((l) => l.id === v.ultima) : null;
   const [zerar, setZerar] = useState(false);
+
+  // Chegadas registradas na portaria (outro aparelho): confere a cada 30 s
+  const { demo, db, eventoId, setAtletas } = store;
+  useEffect(() => {
+    if (demo) return undefined;
+    const buscar = () => db.listarChegadas(eventoId).then((lista) => {
+      const porId = Object.fromEntries(lista.map((c) => [c.id, c.chegou_em]));
+      setAtletas((l) => l.map((x) => (x.id in porId && x.chegouEm !== porId[x.id] ? { ...x, chegouEm: porId[x.id] } : x)));
+    }).catch(() => {});
+    buscar();
+    const t = setInterval(buscar, 30000);
+    return () => clearInterval(t);
+  }, [demo, db, eventoId, setAtletas]);
 
   if (!card.length) {
     return (
@@ -100,6 +130,7 @@ export default function AoVivo({ store }) {
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gold">Próxima · {rotulo(seguinte)}{seguinte.horario ? ` · previsto ${horaExibida(seguinte.horario)}` : ''}</p>
               <Confronto l={seguinte} grande />
               <p className="mt-1 text-center text-xs text-muted">{seguinte.peso}</p>
+              <Chegada l={seguinte} atletas={store.atletas} />
               <Button className="mt-5 w-full py-4 text-base" onClick={() => setAoVivo(iniciar(v, seguinte.id))}>
                 <Icon name="play" className="size-5" /> Iniciar luta
               </Button>

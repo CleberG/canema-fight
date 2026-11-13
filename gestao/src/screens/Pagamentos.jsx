@@ -253,7 +253,7 @@ function Ingressos({ store }) {
               <ul className="mt-3 space-y-1.5 rounded-xl bg-panel-2/70 p-3 text-sm">
                 {p.bilhetes.map((b) => (
                   <li key={b.codigo} className="flex flex-wrap items-center justify-between gap-2">
-                    <span>{b.nome} <span className="text-zinc-500">· {b.idade} anos</span></span>
+                    <span>{b.nome}{b.idade != null && <span className="text-zinc-500"> · {b.idade} anos</span>}</span>
                     <span className="text-xs text-zinc-400">{b.tipo} · <span className="font-mono text-gold">{b.codigo}</span></span>
                   </li>
                 ))}

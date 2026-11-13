@@ -30,6 +30,7 @@ export default function Dashboard({ store }) {
   const vendidos = ingressos.reduce((s, i) => s + vendidosDe(i), 0);
   const capacidade = ingressos.reduce((s, i) => s + totalDe(i), 0);
   const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
+  const chegaram = atletas.filter((a) => a.chegouEm).length;
   const dias = Math.max(0, Math.ceil((new Date(evento.data) - new Date()) / 86400000));
 
   const atalhos = [
@@ -48,7 +49,10 @@ export default function Dashboard({ store }) {
       </PageTitle>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Atletas" valor={atletas.length} icon="users" sub={`${atletas.filter((a) => a.idade != null && a.idade < 18).length} menores`} />
+        <Kpi
+          label="Atletas" valor={atletas.length} icon="users"
+          sub={chegaram > 0 ? `${chegaram} já chegaram` : `${atletas.filter((a) => a.idade != null && a.idade < 18).length} menores`}
+        />
         <Kpi label="Lutas confirmadas" valor={lutas.length} icon="swords" cor="text-gold" sub={`${store.card.length} no card`} />
         <Kpi label="Inscrições pagas" valor={pagos} total={atletas.length} icon="check" cor="text-emerald-400" />
         <Kpi label="Inscrições pendentes" valor={pendentes} icon="alert" cor="text-amber-300" sub={`${pedidosPendentes} pedido(s) de ingresso aguardando`} />

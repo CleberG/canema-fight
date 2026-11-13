@@ -134,6 +134,21 @@ export function categoriaDaLuta(luta, A, B) {
   return pesos.length ? `${Math.round(Math.max(...pesos))} kg` : 'A definir';
 }
 
+// { idAtleta: { numero, total, horario, adversario, canto } } para quem está no card (card = ids na ordem da noite)
+export function lutaDeCadaAtleta(card, lutas, atletas) {
+  const porId = Object.fromEntries(atletas.map((a) => [a.id, a]));
+  const lutaPorId = Object.fromEntries(lutas.map((l) => [l.id, l]));
+  const r = {};
+  card.forEach((id, i) => {
+    const l = lutaPorId[id];
+    if (!l) return;
+    const base = { numero: i + 1, total: card.length, horario: l.horario ?? null };
+    if (!r[l.a]) r[l.a] = { ...base, adversario: porId[l.b], canto: 'vermelho' };
+    if (!r[l.b]) r[l.b] = { ...base, adversario: porId[l.a], canto: 'azul' };
+  });
+  return r;
+}
+
 // "10:15" → "10h15"
 export const horaExibida = (h) => (h ? h.slice(0, 5).replace(':', 'h') : null);
 

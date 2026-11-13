@@ -31,7 +31,7 @@ const atletaDoBanco = (a) => ({
   academia: a.academia, professor: a.professor, cidade: a.cidade, lutas: a.lutas, luvoes: a.luvoes,
   tempoTreino: a.tempo_treino, instagram: a.instagram, telefone: a.telefone, responsavel: a.responsavel,
   pagamento: a.pagamento, pagoEm: a.pago_em, status: 'aguardando', fotoPath: a.foto_path, fotoUrl: null,
-  videoPath: a.video_path, videoUrl: null,
+  videoPath: a.video_path, videoUrl: null, chegouEm: a.chegou_em ?? null,
 });
 
 // Campos editáveis do atleta (formato das telas → colunas)
@@ -197,6 +197,18 @@ export async function inserirAtleta(eventoId, a) {
 
 export async function atualizarAtleta(id, a) {
   ok(await supabase.from('atletas').update(atletaParaBanco(a)).eq('id', id));
+}
+
+// Portaria: chegada do atleta no dia (true = chegou agora, false = desfaz). Devolve a hora gravada.
+export async function registrarChegada(id, chegou) {
+  const quando = chegou ? new Date().toISOString() : null;
+  ok(await supabase.from('atletas').update({ chegou_em: quando }).eq('id', id));
+  return quando;
+}
+
+// Portaria: chegadas e inscrições atualizadas (outros aparelhos podem ter registrado)
+export async function listarChegadas(eventoId) {
+  return ok(await supabase.from('atletas').select('id, chegou_em, pagamento').eq('evento_id', eventoId));
 }
 
 // Inscrição do atleta: 'pago' | 'pendente' | 'expirado'
