@@ -53,6 +53,12 @@ export default function MontagemCard({ store }) {
     setDrag(null); setAlvo(null); alvoRef.current = null;
   };
 
+  // Horário previsto da luta (aparece no card público depois de publicar)
+  const mudarHorario = (l, horario) => {
+    store.setLutas((ls) => ls.map((x) => (x.id === l.id ? { ...x, horario: horario || null } : x)));
+    store.remoto(() => store.db.salvarHorario(store.eventoId, l, horario)).catch(() => {});
+  };
+
   const subir = (id, delta) => setCard((c) => {
     const i = c.indexOf(id);
     const j = i + delta;
@@ -97,6 +103,16 @@ export default function MontagemCard({ store }) {
           </div>
           <Avatar atleta={B} corner="blue" size="size-9" />
         </div>
+        {naLista === 'card' && (
+          <input
+            type="time"
+            value={l.horario ?? ''}
+            onChange={(e) => mudarHorario(l, e.target.value)}
+            aria-label={`Horário de ${nomeExibido(A)} contra ${nomeExibido(B)}`}
+            title="Horário previsto"
+            className="w-[5.5rem] shrink-0 rounded-lg border border-line bg-panel-2 px-1.5 py-1 text-xs text-zinc-200 [color-scheme:dark]"
+          />
+        )}
         {naLista === 'card' ? (
           <div className="flex flex-col">
             <button onClick={() => subir(id, -1)} className="rounded p-0.5 text-zinc-500 hover:text-white" aria-label="Subir"><Icon name="up" className="size-4" /></button>
@@ -156,7 +172,7 @@ export default function MontagemCard({ store }) {
           <Icon name={publicado ? 'check' : 'trophy'} className="size-4" /> {publicado ? 'Card publicado' : 'Publicar card'}
         </Button>
       </PageTitle>
-      <p className="-mt-2 mb-5 text-sm text-muted">Arraste pela alça <Icon name="grip" className="inline size-4" /> para ordenar. A última luta é a principal da noite.</p>
+      <p className="-mt-2 mb-5 text-sm text-muted">Arraste pela alça <Icon name="grip" className="inline size-4" /> para ordenar. A última luta é a principal da noite. O horário previsto de cada luta aparece no card público.</p>
 
       <div className="grid gap-6 xl:grid-cols-5">
         <section className="min-w-0 xl:col-span-2">

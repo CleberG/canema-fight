@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon, iniciais, montarCardPublico } from '../components/ui.jsx';
+import { Icon, horaExibida, iniciais, montarCardPublico } from '../components/ui.jsx';
 import { fila, normalizar, ordemDaNoite, tempoDecorrido } from '../lib/aovivo.js';
 
 // Tela para TV (16:9, vista de longe). Tamanhos em vh para ocupar a tela inteira em qualquer resolução.
@@ -66,6 +66,7 @@ function Confronto({ luta, aoVivo, rotulo, tempo }) {
         <p className="mt-[1.5vh] text-[2.6vh] font-bold uppercase tracking-[.25em] text-gold">{rotulo}</p>
         {categoria(luta) && <p className="mt-[0.6vh] text-[3.4vh] font-semibold text-zinc-200">{categoria(luta)}</p>}
         {aoVivo && <p className="mt-[2vh] font-mono text-[5vh] tabular-nums text-zinc-100">{tempo}</p>}
+        {!aoVivo && luta.horario && <p className="mt-[2vh] font-mono text-[5vh] tabular-nums text-zinc-100">{horaExibida(luta.horario)}</p>}
       </div>
       <Lado atleta={luta.azul} canto="blue" aoVivo={aoVivo} />
     </div>
@@ -225,7 +226,7 @@ export default function TelaTV({ store, carga }) {
             <div key={l.id} className="flex min-w-0 flex-1 items-center gap-[1.6vh] rounded-[2vh] border border-white/10 bg-panel/70 p-[1.2vh]">
               <Miniatura atleta={l.vermelho} canto="red" />
               <div className="min-w-0 flex-1 text-center">
-                <p className="text-[1.8vh] font-bold uppercase tracking-[.2em] text-zinc-500">{rotulo(l)}{categoria(l) ? ` · ${categoria(l)}` : ''}</p>
+                <p className="text-[1.8vh] font-bold uppercase tracking-[.2em] text-zinc-500">{l.horario ? `${horaExibida(l.horario)} · ` : ''}{rotulo(l)}{categoria(l) ? ` · ${categoria(l)}` : ''}</p>
                 <p className="truncate font-display text-[3.4vh] leading-tight tracking-wide">
                   <span className="text-red-300">{l.vermelho.nome}</span> <span className="text-zinc-500">×</span> <span className="text-blue-300">{l.azul.nome}</span>
                 </p>

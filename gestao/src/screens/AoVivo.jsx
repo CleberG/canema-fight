@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Badge, Button, Card, Icon, PageTitle, montarCardPublico } from '../components/ui.jsx';
+import { Badge, Button, Card, Icon, PageTitle, horaExibida, montarCardPublico } from '../components/ui.jsx';
 import {
   VAZIO, VENCEDORES, adiantar, adiar, corrigirVencedor, desfazer, encerrar, iniciar, normalizar, ordemDaNoite, proxima, sequencia, situacao,
   tempoDecorrido, voltarParaCard,
@@ -97,7 +97,7 @@ export default function AoVivo({ store }) {
         <Card className="mb-6 p-4 sm:p-5">
           {seguinte ? (
             <>
-              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gold">Próxima · {rotulo(seguinte)}</p>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-gold">Próxima · {rotulo(seguinte)}{seguinte.horario ? ` · previsto ${horaExibida(seguinte.horario)}` : ''}</p>
               <Confronto l={seguinte} grande />
               <p className="mt-1 text-center text-xs text-muted">{seguinte.peso}</p>
               <Button className="mt-5 w-full py-4 text-base" onClick={() => setAoVivo(iniciar(v, seguinte.id))}>
@@ -126,7 +126,10 @@ export default function AoVivo({ store }) {
           return (
             <Card key={l.id} className={`p-3 ${s === 'ao_vivo' ? 'border-fight/60' : ''} ${s === 'encerrada' ? 'opacity-80' : ''}`}>
               <div className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-[11px] font-bold uppercase tracking-wider text-zinc-500">{rotulo(l)}</span>
+                <span className="w-16 shrink-0 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                  {rotulo(l)}
+                  {l.horario && <span className="block font-mono text-xs normal-case tracking-normal text-zinc-300">{horaExibida(l.horario)}</span>}
+                </span>
                 <div className="min-w-0 flex-1"><Confronto l={l} /></div>
                 {s === 'aguardando' && (
                   <div className="flex shrink-0 flex-col">

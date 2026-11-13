@@ -146,6 +146,7 @@ export async function carregarOrganizador() {
 
   const aprovadas = lutas.filter((l) => l.status === 'aprovada').map((l) => ({
     id: `${l.atleta_a}-${l.atleta_b}`, a: l.atleta_a, b: l.atleta_b, pontuacao: l.pontuacao, posicao: l.posicao_card, categoria: l.categoria,
+    horario: l.horario ? l.horario.slice(0, 5) : null, // "10:15"
   }));
   return {
     ...publico,
@@ -238,6 +239,13 @@ export async function salvarCard(eventoId, card, lutas) {
     return supabase.from('lutas').update({ posicao_card: pos < 0 ? null : pos })
       .eq('evento_id', eventoId).eq('atleta_a', p.atleta_a).eq('atleta_b', p.atleta_b).then(ok);
   }));
+}
+
+// Horário previsto da luta ("10:15") ou null para tirar.
+export async function salvarHorario(eventoId, luta, horario) {
+  const p = par(luta);
+  ok(await supabase.from('lutas').update({ horario: horario || null })
+    .eq('evento_id', eventoId).eq('atleta_a', p.atleta_a).eq('atleta_b', p.atleta_b));
 }
 
 export async function publicarCard(eventoId, cardPublico) {

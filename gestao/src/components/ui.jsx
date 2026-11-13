@@ -26,6 +26,7 @@ const PATHS = {
   pin: 'M12 22s-8-6-8-12a8 8 0 0116 0c0 6-8 12-8 12zM12 13a3 3 0 100-6 3 3 0 000 6z',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
   camera: 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2zM12 17a4 4 0 100-8 4 4 0 000 8z',
+  clock: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2',
   tv: 'M4 5h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM8 21h8M12 17v4',
   external: 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3',
   settings: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
@@ -118,8 +119,11 @@ export function montarCardPublico(card, lutas, atletas) {
     video: a.videoPath ?? null, ...(a.videoPath ? {} : { videoUrl: a.videoUrl ?? null }),
   });
   return [...card].reverse().filter((id) => lutaPorId[id]).map((id) => {
-    const { a, b, categoria } = lutaPorId[id];
-    return { id, vermelho: canto(porId[a]), azul: canto(porId[b]), peso: categoriaDaLuta(lutaPorId[id], porId[a], porId[b]), categoria: categoria ?? null };
+    const { a, b, categoria, horario } = lutaPorId[id];
+    return {
+      id, vermelho: canto(porId[a]), azul: canto(porId[b]), peso: categoriaDaLuta(lutaPorId[id], porId[a], porId[b]),
+      categoria: categoria ?? null, horario: horario ?? null,
+    };
   });
 }
 
@@ -129,6 +133,16 @@ export function categoriaDaLuta(luta, A, B) {
   const pesos = [A?.peso, B?.peso].filter((p) => p != null);
   return pesos.length ? `${Math.round(Math.max(...pesos))} kg` : 'A definir';
 }
+
+// "10:15" → "10h15"
+export const horaExibida = (h) => (h ? h.slice(0, 5).replace(':', 'h') : null);
+
+// Diferença em minutos entre dois horários "HH:MM" (para marcar o intervalo no card).
+export const minutosEntre = (h1, h2) => {
+  if (!h1 || !h2) return 0;
+  const m = (h) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+  return m(h2) - m(h1);
+};
 
 export const iniciais =(nome) => nome.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
