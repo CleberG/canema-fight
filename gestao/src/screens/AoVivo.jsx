@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Badge, Button, Card, Icon, PageTitle, montarCardPublico } from '../components/ui.jsx';
 import {
-  VAZIO, VENCEDORES, corrigirVencedor, desfazer, encerrar, iniciar, normalizar, ordemDaNoite, proxima, situacao, tempoDecorrido,
+  VAZIO, VENCEDORES, adiantar, adiar, corrigirVencedor, desfazer, encerrar, iniciar, normalizar, ordemDaNoite, proxima, sequencia, situacao,
+  tempoDecorrido, voltarParaCard,
 } from '../lib/aovivo.js';
 
 const nomeDoVencedor = (l, vencedor) => (vencedor === 'vermelho' ? l.vermelho.nome : vencedor === 'azul' ? l.azul.nome : vencedor === 'empate' ? 'Empate' : 'Sem resultado');
@@ -31,8 +32,8 @@ export default function AoVivo({ store }) {
   const { aoVivo, setAoVivo, evento } = store;
   const card = store.demo ? montarCardPublico(store.card, store.lutas, store.atletas) : store.cardPublicado;
   const v = normalizar(aoVivo);
-  const ordem = ordemDaNoite(card);
-  const numero = Object.fromEntries(ordem.map((l, i) => [l.id, i + 1]));
+  const ordem = sequencia(card, v); // com as lutas adiadas/adiantadas
+  const numero = Object.fromEntries(ordemDaNoite(card).map((l, i) => [l.id, i + 1])); // número original no card
   const atual = ordem.find((l) => l.id === v.atual) ?? null;
   const seguinte = proxima(card, v);
   const encerradas = ordem.filter((l) => v.resultados[l.id]).length;
@@ -82,6 +83,15 @@ export default function AoVivo({ store }) {
             <Button variant="ghost" className="py-3" onClick={() => setAoVivo(encerrar(v, 'empate'))}>Empate</Button>
             <Button variant="ghost" className="py-3" onClick={() => setAoVivo(encerrar(v, null))}><Icon name="stop" className="size-4" /> Sem resultado</Button>
           </div>
+          <p className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Deu algum problema?</p>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <Button variant="ghost" onClick={() => setAoVivo(voltarParaCard(v, atual.id))}>
+              <Icon name="undo" className="size-4" /> Voltar para o card
+            </Button>
+            <Button variant="ghost" onClick={() => setAoVivo(adiar(voltarParaCard(v, atual.id), card, atual.id))}>
+              <Icon name="down" className="size-4" /> Adiar para o fim
+            </Button>
+          </div>
         </Card>
       ) : (
         <Card className="mb-6 p-4 sm:p-5">
@@ -93,6 +103,9 @@ export default function AoVivo({ store }) {
               <Button className="mt-5 w-full py-4 text-base" onClick={() => setAoVivo(iniciar(v, seguinte.id))}>
                 <Icon name="play" className="size-5" /> Iniciar luta
               </Button>
+              <button onClick={() => setAoVivo(adiar(v, card, seguinte.id))} className="mt-3 inline-flex w-full items-center justify-center gap-2 text-sm text-zinc-400 hover:text-white">
+                <Icon name="down" className="size-4" /> Pular esta luta (adiar para o fim)
+              </button>
             </>
           ) : (
             <p className="py-4 text-center text-sm text-zinc-300"><Icon name="trophy" className="mx-auto mb-2 size-8 text-gold" />Todas as lutas foram encerradas.</p>
@@ -115,6 +128,18 @@ export default function AoVivo({ store }) {
               <div className="flex items-center gap-3">
                 <span className="w-16 shrink-0 text-[11px] font-bold uppercase tracking-wider text-zinc-500">{rotulo(l)}</span>
                 <div className="min-w-0 flex-1"><Confronto l={l} /></div>
+                {s === 'aguardando' && (
+                  <div className="flex shrink-0 flex-col">
+                    {seguinte?.id !== l.id && (
+                      <button onClick={() => setAoVivo(adiantar(v, card, l.id))} className="rounded p-0.5 text-zinc-500 hover:text-white" title="Fazer a seguir" aria-label={`Adiantar ${l.vermelho.nome} contra ${l.azul.nome}`}>
+                        <Icon name="up" className="size-4" />
+                      </button>
+                    )}
+                    <button onClick={() => setAoVivo(adiar(v, card, l.id))} className="rounded p-0.5 text-zinc-500 hover:text-white" title="Adiar para o fim" aria-label={`Adiar ${l.vermelho.nome} contra ${l.azul.nome}`}>
+                      <Icon name="down" className="size-4" />
+                    </button>
+                  </div>
+                )}
                 {s === 'aguardando' && (
                   <button
                     onClick={() => setAoVivo(iniciar(v, l.id))}
@@ -140,13 +165,18 @@ export default function AoVivo({ store }) {
                     </button>
                   ))}
                   {!r.vencedor && <span className="text-zinc-500">sem resultado</span>}
-                  <button
-                    onClick={() => setAoVivo(iniciar(v, l.id))}
-                    disabled={!!v.atual}
-                    className="ml-auto inline-flex items-center gap-1 text-zinc-500 hover:text-white disabled:opacity-30"
-                  >
-                    <Icon name="undo" className="size-3.5" /> Reiniciar luta
-                  </button>
+                  <span className="ml-auto flex items-center gap-3">
+                    <button onClick={() => setAoVivo(voltarParaCard(v, l.id))} className="inline-flex items-center gap-1 text-zinc-500 hover:text-white">
+                      <Icon name="undo" className="size-3.5" /> Voltar para o card
+                    </button>
+                    <button
+                      onClick={() => setAoVivo(iniciar(v, l.id))}
+                      disabled={!!v.atual}
+                      className="inline-flex items-center gap-1 text-zinc-500 hover:text-white disabled:opacity-30"
+                    >
+                      <Icon name="play" className="size-3.5" /> Reiniciar luta
+                    </button>
+                  </span>
                 </div>
               )}
             </Card>

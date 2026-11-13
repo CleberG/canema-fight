@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { VAZIO, corrigirVencedor, desfazer, encerrar, iniciar, proxima, situacao, tempoDecorrido } from './aovivo.js';
+import {
+  VAZIO, adiantar, adiar, corrigirVencedor, desfazer, encerrar, fila, iniciar, proxima, sequencia, situacao, tempoDecorrido, voltarParaCard,
+} from './aovivo.js';
 
 // Card público: principal primeiro (luta 3 é a principal, luta 1 abre a noite)
 const CARD = [{ id: 'c' }, { id: 'b' }, { id: 'a' }];
@@ -52,4 +54,37 @@ test('estado vindo do banco vazio ou nulo', () => {
 test('tempo decorrido', () => {
   assert.equal(tempoDecorrido('2026-12-12T21:00:00Z', Date.parse('2026-12-12T21:04:07Z')), '04:07');
   assert.equal(tempoDecorrido(null), '00:00');
+});
+
+const ids = (lista) => lista.map((l) => l.id);
+
+test('voltar para o card uma luta encerrada ou ao vivo', () => {
+  let v = encerrar(iniciar(VAZIO, 'a'), 'azul');
+  v = voltarParaCard(v, 'a');
+  assert.equal(situacao(v, 'a'), 'aguardando');
+  assert.equal(v.ultima, null);
+  assert.equal(proxima(CARD, v).id, 'a', 'volta para o seu lugar na ordem');
+  v = voltarParaCard(iniciar(v, 'a'), 'a');
+  assert.equal(v.atual, null);
+  assert.equal(situacao(v, 'a'), 'aguardando');
+});
+
+test('adiar manda a luta para o fim da fila', () => {
+  const v = adiar(VAZIO, CARD, 'a');
+  assert.deepEqual(ids(fila(CARD, v)), ['b', 'c', 'a']);
+  assert.equal(proxima(CARD, v).id, 'b');
+});
+
+test('adiantar faz a luta ser a próxima, depois das que já aconteceram', () => {
+  let v = encerrar(iniciar(VAZIO, 'a'), 'azul');
+  v = adiantar(v, CARD, 'c');
+  assert.deepEqual(ids(sequencia(CARD, v)), ['a', 'c', 'b']);
+  assert.equal(proxima(CARD, v).id, 'c');
+  assert.deepEqual(adiar(v, CARD, 'a').ordem, v.ordem, 'luta encerrada não muda de lugar');
+});
+
+test('lutas novas no card entram no fim da ordem ajustada', () => {
+  const v = adiar(VAZIO, CARD, 'a');
+  const novo = [{ id: 'd' }, ...CARD];
+  assert.deepEqual(ids(sequencia(novo, v)), ['b', 'c', 'a', 'd']);
 });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon, iniciais, montarCardPublico } from '../components/ui.jsx';
-import { normalizar, ordemDaNoite, tempoDecorrido } from '../lib/aovivo.js';
+import { fila, normalizar, ordemDaNoite, tempoDecorrido } from '../lib/aovivo.js';
 
 // Tela para TV (16:9, vista de longe). Tamanhos em vh para ocupar a tela inteira em qualquer resolução.
 // Mostra a luta ao vivo (ou a próxima), o vencedor logo após o encerramento e as lutas seguintes.
@@ -176,7 +176,7 @@ export default function TelaTV({ store, carga }) {
   const numero = (l) => ordem.indexOf(l) + 1;
   const rotulo = (l) => (numero(l) === ordem.length ? 'Luta principal' : `Luta ${String(numero(l)).padStart(2, '0')}`);
   const atual = ordem.find((l) => l.id === v.atual) ?? null;
-  const pendentes = ordem.filter((l) => l.id !== v.atual && !v.resultados[l.id]);
+  const pendentes = fila(card, v); // já considera lutas adiadas/adiantadas
   const encerradas = ordem.filter((l) => v.resultados[l.id]).length;
   const ultima = ordem.find((l) => l.id === v.ultima) ?? null;
   const mostrarVencedor = !atual && ultima && agora < vencedorAte;
