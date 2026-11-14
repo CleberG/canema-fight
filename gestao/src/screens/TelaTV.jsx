@@ -6,6 +6,8 @@ import { fila, normalizar, ordemDaNoite, tempoDecorrido } from '../lib/aovivo.js
 // Mostra a luta ao vivo (ou a próxima), o vencedor logo após o encerramento e as lutas seguintes.
 
 const VENCEDOR_SEGUNDOS = 20;
+// Nomes longos na faixa "A seguir" ficam um pouco menores para caber sem cortar
+const tamanhoNome = (nome) => (nome.length > 15 ? 'text-[3.6vh]' : 'text-[4.4vh]');
 const categoria = (l) => (typeof l.peso === 'number' ? `${l.peso} kg` : l.peso);
 
 function useAgora(intervalo = 1000) {
@@ -37,14 +39,14 @@ function Lado({ atleta, canto, aoVivo }) {
   return (
     <div className={`flex min-w-0 flex-col ${azul ? 'items-end text-right' : 'items-start'}`}>
       <div
-        className={`relative aspect-square h-[54vh] overflow-hidden rounded-[3vh] ring-[0.6vh] ${azul ? 'ring-corner-blue' : 'ring-fight'} ${aoVivo ? 'brilho-ao-vivo' : ''} shadow-2xl ${azul ? 'shadow-corner-blue/30' : 'shadow-fight/30'}`}
+        className={`relative aspect-square h-[46vh] overflow-hidden rounded-[3vh] ring-[0.6vh] ${azul ? 'ring-corner-blue' : 'ring-fight'} ${aoVivo ? 'brilho-ao-vivo' : ''} shadow-2xl ${azul ? 'shadow-corner-blue/30' : 'shadow-fight/30'}`}
       >
         <Midia atleta={atleta} canto={canto} aoVivo={aoVivo} />
         <span className={`absolute top-[1.6vh] ${azul ? 'right-[1.6vh]' : 'left-[1.6vh]'} rounded-full px-[1.4vh] py-[0.4vh] text-[1.8vh] font-bold uppercase tracking-widest text-white ${azul ? 'bg-corner-blue' : 'bg-fight'}`}>
           {azul ? 'Canto azul' : 'Canto vermelho'}
         </span>
       </div>
-      <p className={`mt-[2vh] max-w-[70vh] truncate font-display ${atleta.nome.length > 14 ? 'text-[7vh]' : 'text-[10vh]'} leading-[.9] tracking-wide ${azul ? 'text-blue-300' : 'text-red-300'}`}>{atleta.nome}</p>
+      <p className={`mt-[2vh] max-w-[70vh] truncate font-display ${atleta.nome.length > 14 ? 'text-[6.5vh]' : 'text-[9vh]'} leading-[.9] tracking-wide ${azul ? 'text-blue-300' : 'text-red-300'}`}>{atleta.nome}</p>
       {atleta.academia && <p className="max-w-[70vh] truncate text-[2.4vh] text-zinc-400">{atleta.academia}</p>}
     </div>
   );
@@ -62,7 +64,7 @@ function Confronto({ luta, aoVivo, rotulo, tempo }) {
         ) : (
           <span className="whitespace-nowrap rounded-full bg-gold px-[2.4vh] py-[0.8vh] text-[3vh] font-bold uppercase tracking-[.2em] text-ink">Próxima luta</span>
         )}
-        <p className="mt-[2vh] font-display text-[22vh] leading-[.8] text-fight drop-shadow-[0_0_4vh_rgba(229,38,47,.45)]">VS</p>
+        <p className="mt-[2vh] font-display text-[19vh] leading-[.8] text-fight drop-shadow-[0_0_4vh_rgba(229,38,47,.45)]">VS</p>
         <p className="mt-[1.5vh] text-[2.6vh] font-bold uppercase tracking-[.25em] text-gold">{rotulo}</p>
         {categoria(luta) && <p className="mt-[0.6vh] text-[3.4vh] font-semibold text-zinc-200">{categoria(luta)}</p>}
         {aoVivo && <p className="mt-[2vh] font-mono text-[5vh] tabular-nums text-zinc-100">{tempo}</p>}
@@ -108,7 +110,7 @@ function Vencedor({ luta, vencedor, rotulo }) {
 function Miniatura({ atleta, canto }) {
   const fundo = canto === 'red' ? 'from-fight to-fight-dark ring-fight/70' : 'from-corner-blue to-blue-800 ring-corner-blue/70';
   return (
-    <span className={`grid size-[8vh] shrink-0 place-items-center overflow-hidden rounded-[1.4vh] bg-gradient-to-br font-display text-[3.4vh] text-white ring-[0.3vh] ${fundo}`}>
+    <span className={`grid size-[10vh] shrink-0 place-items-center overflow-hidden rounded-[1.6vh] bg-gradient-to-br font-display text-[4vh] text-white ring-[0.3vh] ${fundo}`}>
       {atleta.fotoUrl ? <img src={atleta.fotoUrl} alt="" className="size-full object-cover" /> : iniciais(atleta.nome)}
     </span>
   );
@@ -191,7 +193,7 @@ export default function TelaTV({ store, carga }) {
       <div className="pointer-events-none absolute inset-0 opacity-[.05] [background:repeating-linear-gradient(-45deg,#fff_0_2px,transparent_2px_16px)]" />
 
       {/* Topo */}
-      <header className="relative flex h-[10vh] shrink-0 items-center justify-between border-b border-white/10 px-[4vh]">
+      <header className="relative flex h-[10vh] shrink-0 items-center justify-between border-b border-white/10 px-[5vw]">
         <p className="font-display text-[6vh] leading-none tracking-wide">
           {store.evento.nome.split(' ').slice(0, -1).join(' ')} <span className="text-gold">{store.evento.nome.split(' ').at(-1)}</span>
         </p>
@@ -202,7 +204,7 @@ export default function TelaTV({ store, carga }) {
       </header>
 
       {/* Palco */}
-      <main className="relative flex min-h-0 flex-1 items-center justify-center px-[6vh]">
+      <main className="relative flex min-h-0 flex-1 items-center justify-center px-[5vw]">
         {card.length === 0 ? (
           <p className="font-display text-[10vh] tracking-wide text-zinc-400">Card em breve</p>
         ) : mostrarVencedor ? (
@@ -220,20 +222,21 @@ export default function TelaTV({ store, carga }) {
 
       {/* A seguir */}
       {aSeguir.length > 0 && (
-        <footer className="relative flex h-[16vh] shrink-0 items-center gap-[3vh] border-t border-white/10 bg-black/30 px-[4vh]">
-          <p className="w-[14vh] shrink-0 font-display text-[4.6vh] leading-[.9] tracking-wide text-gold">A seguir</p>
-          {aSeguir.map((l) => (
-            <div key={l.id} className="flex min-w-0 flex-1 items-center gap-[1.6vh] rounded-[2vh] border border-white/10 bg-panel/70 p-[1.2vh]">
-              <Miniatura atleta={l.vermelho} canto="red" />
-              <div className="min-w-0 flex-1 text-center">
-                <p className="text-[1.8vh] font-bold uppercase tracking-[.2em] text-zinc-500">{l.horario ? `${horaExibida(l.horario)} · ` : ''}{rotulo(l)}{categoria(l) ? ` · ${categoria(l)}` : ''}</p>
-                <p className="truncate font-display text-[3.4vh] leading-tight tracking-wide">
-                  <span className="text-red-300">{l.vermelho.nome}</span> <span className="text-zinc-500">×</span> <span className="text-blue-300">{l.azul.nome}</span>
-                </p>
+        <footer className="relative shrink-0 border-t border-white/10 bg-black/30 px-[5vw] pb-[2vh] pt-[1.4vh]">
+          <p className="mb-[1vh] font-display text-[4vh] leading-none tracking-wide text-gold">A seguir</p>
+          <div className="flex gap-[2.4vh]">
+            {aSeguir.map((l) => (
+              <div key={l.id} className="flex min-w-0 flex-1 items-center gap-[1.6vh] rounded-[2vh] border border-white/10 bg-panel/70 p-[1.4vh]">
+                <Miniatura atleta={l.vermelho} canto="red" />
+                <div className="min-w-0 flex-1 text-center">
+                  <p className="truncate text-[2.3vh] font-bold uppercase tracking-[.15em] text-gold">{l.horario ? `${horaExibida(l.horario)} · ` : ''}{rotulo(l)}</p>
+                  <p className={`truncate font-display ${tamanhoNome(l.vermelho.nome)} leading-[1.05] tracking-wide text-red-300`}>{l.vermelho.nome}</p>
+                  <p className={`truncate font-display ${tamanhoNome(l.azul.nome)} leading-[1.05] tracking-wide text-blue-300`}>{l.azul.nome}</p>
+                </div>
+                <Miniatura atleta={l.azul} canto="blue" />
               </div>
-              <Miniatura atleta={l.azul} canto="blue" />
-            </div>
-          ))}
+            ))}
+          </div>
         </footer>
       )}
 
