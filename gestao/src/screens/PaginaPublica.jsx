@@ -202,19 +202,25 @@ export default function PaginaPublica({ store, carga }) {
             </p>
           )}
           <div className="space-y-3">
-            {cardLista.map((l, i) => {
-              const principal = i === 0;
-              const numero = cardLista.length - i;
+            {/* Em ordem de horário: da luta 1 até a principal (o card publicado vem com a principal primeiro) */}
+            {[...cardLista].reverse().map((l, i, noite) => {
+              const principal = i === noite.length - 1;
+              const numero = i + 1;
               const categoria = typeof l.peso === 'number' ? `${l.peso} kg` : l.peso;
               const s = situacao(aoVivo, l.id);
               const vencedor = aoVivo.resultados[l.id]?.vencedor ?? null;
               const borda = s === 'ao_vivo' ? 'border-fight/70 bg-panel' : principal ? 'border-gold/60 bg-gradient-to-b from-gold/10 to-panel' : 'border-line bg-panel';
               const ehProxima = s === 'aguardando' && proximaLuta?.id === l.id && aoVivo.atual == null && Object.keys(aoVivo.resultados).length > 0;
-              // Intervalo: pausa longa entre esta luta e a anterior da noite (a próxima da lista)
-              const anterior = cardLista[i + 1];
+              // Intervalo: pausa longa entre a luta anterior e esta
+              const anterior = noite[i - 1];
               const intervalo = anterior && minutosEntre(anterior.horario, l.horario) >= 20;
               return (
                 <div key={l.id} className="space-y-3">
+                  {intervalo && (
+                    <p className="flex items-center gap-3 py-1 text-xs font-bold uppercase tracking-[.25em] text-gold">
+                      <span className="h-px flex-1 bg-gold/30" /> Intervalo <span className="h-px flex-1 bg-gold/30" />
+                    </p>
+                  )}
                   <article className={`relative overflow-hidden rounded-3xl border p-3 sm:p-4 ${borda}`}>
                     <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-fight/15 to-transparent" />
                     <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-corner-blue/15 to-transparent" />
@@ -240,11 +246,6 @@ export default function PaginaPublica({ store, carga }) {
                       <Lutador atleta={l.azul} canto="blue" resultado={ladoDoResultado(vencedor, 'azul')} />
                     </div>
                   </article>
-                  {intervalo && (
-                    <p className="flex items-center gap-3 py-1 text-xs font-bold uppercase tracking-[.25em] text-gold">
-                      <span className="h-px flex-1 bg-gold/30" /> Intervalo <span className="h-px flex-1 bg-gold/30" />
-                    </p>
-                  )}
                 </div>
               );
             })}
